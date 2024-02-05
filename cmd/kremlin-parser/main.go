@@ -50,7 +50,7 @@ func NewParser(pageCount string, outputPath string) Parser {
 	pages := getPages(pageCount)
 
 	parser := Parser{
-		URI:        "http://kremlin.ru/events/all/feed/page/3315",
+		URI:        "http://kremlin.ru/events/all/feed",
 		PageCount:  pages,
 		OutputPath: outputPath,
 	}
