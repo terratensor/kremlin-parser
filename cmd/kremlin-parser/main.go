@@ -50,7 +50,7 @@ func NewParser(pageCount string, outputPath string) Parser {
 	pages := getPages(pageCount)
 
 	parser := Parser{
-		URI:        "http://kremlin.ru/events/all/feed",
+		URI:        "http://kremlin.ru/events/all/feed/page/3315",
 		PageCount:  pages,
 		OutputPath: outputPath,
 	}
@@ -84,6 +84,11 @@ func main() {
 			url = parser.URI
 		} else {
 			url = meta.Next
+		}
+		// Если url пустой, следующей достигнут конец RSS ленты,
+		// следующей станицы не существует, заканчиваем парсинг
+		if url == "" {
+			break
 		}
 
 		var entries Entries
