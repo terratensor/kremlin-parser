@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/gosimple/slug"
 	flag "github.com/spf13/pflag"
 	"golang.org/x/net/html"
 	"log"
@@ -33,39 +34,63 @@ type Meta struct {
 	Last    string     `json:"last"`
 }
 
+type Parser struct {
+	URI        string
+	PageCount  int
+	OutputPath string
+}
+
 func checkError(message string, err error) {
 	if err != nil {
 		log.Fatal(message, err)
 	}
 }
 
-var pageCount, outputPath string
+func NewParser(pageCount string, outputPath string) Parser {
+	pages := getPages(pageCount)
+
+	parser := Parser{
+		URI:        "http://kremlin.ru/events/all/feed",
+		PageCount:  pages,
+		OutputPath: outputPath,
+	}
+	return parser
+}
 
 func main() {
-	flag.StringVarP(&outputPath, "output", "o", ".", "путь сохранения файлов")
+
+	var pageCount, outputPath string
+
+	flag.StringVarP(&outputPath, "output", "o", "./data", "путь сохранения файлов")
 	flag.StringVarP(&pageCount, "page-count", "p", "1", "спарсить указанное количество страниц")
 	flag.Parse()
 
-	startUrl := "http://kremlin.ru/events/all/feed"
-
-	var entries Entries
-	file := fmt.Sprintf("%v/kremlin.json", outputPath)
-	file = filepath.Clean(file)
+	parser := NewParser(pageCount, outputPath)
 
 	var meta Meta
 	var url string
 
 	count := 1
-	pages := getPages(pageCount)
 
+	// Парсит указанное количество страниц rss ленты сайта кремля.
+	// Сохраняет каждую страницу в отдельный файл.
+	// При каждом успешном парсинге возвращает ссылку на следующую страницу rss ленты.
+	// Делает паузу 5 секунд между парсингами.
 	for {
+
+		// Если мета еще пустой, то url равен начальному url
+		// иначе url равен ссылке на следующую страницу
 		if meta.Self == "" && meta.Next == "" {
-			url = startUrl
+			url = parser.URI
 		} else {
 			url = meta.Next
 		}
 
-		if count != pages || count != 1 {
+		var entries Entries
+		file := fmt.Sprintf("%v/%v.json", outputPath, slug.Make(url))
+		file = filepath.Clean(file)
+
+		if count != parser.PageCount || count != 1 {
 			log.Printf("waiting 5 seconds")
 			time.Sleep(5 * time.Second)
 		}
@@ -88,16 +113,16 @@ func main() {
 
 		entries = parseEntries(entries, node)
 
-		if count == pages {
+		writeJsonFile(entries, file)
+		log.Printf("file %v was successful writing\n", file)
+
+		if count == parser.PageCount {
 			break
 		}
 		count++
 	}
 
-	log.Printf("length of entries %v", len(entries))
-
-	writeJsonFile(entries, file)
-	log.Printf("file %v was successful writing\n", file)
+	log.Printf("all pages were successfully parsed")
 
 }
 
@@ -125,7 +150,6 @@ func getTopicBody(url string) (*html.Node, error) {
 		return nil, fmt.Errorf("status code error: %d %s", resp.StatusCode, resp.Status)
 	}
 	doc, err := html.Parse(resp.Body)
-	//body, err := io.ReadAll(resp.Body)
 
 	if err != nil {
 		log.Fatalln(err) // Handle error
