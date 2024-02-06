@@ -1,0 +1,6 @@
+env: "local" # Окружение - local, dev или prod
+parser:
+  URI: "http://kremlin.ru/events/all/feed"
+  page_count: 2
+  output_path: "./data"
+  parse_delay: 5s
