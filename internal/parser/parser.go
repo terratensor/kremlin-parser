@@ -3,10 +3,13 @@ package parser
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/gosimple/slug"
 	"github.com/terratensor/kremlin-parser/internal/config"
+	"github.com/terratensor/kremlin-parser/internal/lib/logger/sl"
 	"golang.org/x/net/html"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -14,6 +17,7 @@ import (
 )
 
 type Parser struct {
+	ID         uuid.UUID
 	URI        string
 	PageCount  int
 	OutputPath string
@@ -23,6 +27,7 @@ type Parser struct {
 
 func New(cfg *config.Config) Parser {
 	parser := Parser{
+		ID:         uuid.New(),
 		URI:        cfg.Parser.URI,
 		PageCount:  cfg.Parser.PageCount,
 		OutputPath: cfg.Parser.OutputPath,
@@ -32,7 +37,12 @@ func New(cfg *config.Config) Parser {
 	return parser
 }
 
-func (p *Parser) Parse() {
+func (p *Parser) Parse(log *slog.Logger) {
+	const op = "parser.parse"
+	log = log.With(
+		slog.String("op", op),
+		slog.String("parser_id", p.ID.String()),
+	)
 
 	count := 1
 	// Парсит указанное количество страниц rss ленты сайта кремля.
@@ -53,29 +63,29 @@ func (p *Parser) Parse() {
 		path := p.NewFilepath(url)
 
 		if count != p.PageCount || count != 1 {
-			log.Printf("waiting %v", p.Delay)
+			log.Info("waiting", slog.Duration("parse_delay", *p.Delay))
 			time.Sleep(*p.Delay)
 		}
 
-		log.Printf("parsing %v", url)
+		log.Info("parsing url", slog.Any("url", url))
 
 		node, err := getTopicBody(url)
 
 		if os.IsTimeout(err) {
-			log.Println("IsTimeoutError: true")
-			log.Printf("Waiting %v", p.Delay)
+			log.Info("timeout error, waiting", slog.Duration("parse_delay", *p.Delay))
 			time.Sleep(*p.Delay)
 			continue
 		}
 		if err != nil {
-			log.Fatal(err)
+			log.Error("failed to decode request body", sl.Err(err))
+			os.Exit(1)
 		}
 
 		p.Meta = parseMeta(node)
 		entries = parseEntries(entries, node)
 
 		WriteJsonFile(entries, path)
-		log.Printf("path %v was successful writing\n", path)
+		log.Info("path was successful writing", slog.Any("path", path))
 
 		if count == p.PageCount {
 			break

@@ -12,6 +12,7 @@ type Entry struct {
 	Url       string     `json:"url"`
 	Updated   *time.Time `json:"update"`
 	Published *time.Time `json:"published"`
+	Summary   string     `json:"summary"`
 	Content   string     `json:"content"`
 }
 
