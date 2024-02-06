@@ -7,6 +7,7 @@ import (
 	"github.com/gosimple/slug"
 	"github.com/terratensor/kremlin-parser/internal/config"
 	"github.com/terratensor/kremlin-parser/internal/lib/logger/sl"
+	"github.com/terratensor/kremlin-parser/internal/storage/sqlite"
 	"golang.org/x/net/html"
 	"log"
 	"log/slog"
@@ -25,7 +26,7 @@ type Parser struct {
 	Meta       *Meta
 }
 
-func New(cfg *config.Config) Parser {
+func New(cfg *config.Config, storage *sqlite.Storage) Parser {
 	parser := Parser{
 		ID:         uuid.New(),
 		URI:        cfg.Parser.URI,

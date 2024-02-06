@@ -1,4 +1,5 @@
 env: "local" # Окружение - local, dev или prod
+storage_path: "./storage/storage.db"
 parser:
   URI: "http://kremlin.ru/events/all/feed"
   page_count: 2

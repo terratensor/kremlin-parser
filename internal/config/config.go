@@ -8,8 +8,9 @@ import (
 )
 
 type Config struct {
-	Env    string `yaml:"env" env-default:"development"`
-	Parser `yaml:"parser"`
+	Env         string `yaml:"env" env-default:"development"`
+	StoragePath string `yaml:"storage_path" env-required:"true"`
+	Parser      `yaml:"parser"`
 }
 
 type Parser struct {
