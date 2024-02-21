@@ -1,7 +1,12 @@
 env: "local" # Окружение - local, dev или prod
 storage_path: "./storage/storage.db"
+start_urls:
+  - url: "http://kremlin.ru/events/all/feed"
+    lang: "ru"
+  - url: "http://en.kremlin.ru/events/all/feed"
+    lang: "en"
 parser:
   URI: "http://kremlin.ru/events/all/feed"
-  page_count: 2
+  page_count: 1
   output_path: "./data"
-  parse_delay: 5s
+  parse_delay: 2s

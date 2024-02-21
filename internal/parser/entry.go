@@ -9,6 +9,7 @@ import (
 type Entries []Entry
 
 type Entry struct {
+	Language  string     `json:"language"`
 	Title     string     `json:"title"`
 	Url       string     `json:"url"`
 	Updated   *time.Time `json:"update"`

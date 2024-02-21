@@ -8,6 +8,7 @@ import (
 	"github.com/terratensor/kremlin-parser/internal/storage/sqlite"
 	"log/slog"
 	"os"
+	"sync"
 )
 
 const (
@@ -37,12 +38,24 @@ func main() {
 	//flag.StringVarP(&cfg.Parser.PageCount, "page-count", "p", "1", "спарсить указанное количество страниц")
 	//flag.Parse()
 
-	prs := parser.New(cfg, storage)
-	prs.Parse(log)
+	var wg sync.WaitGroup
+	for _, uri := range cfg.StartURLs {
+		prs := parser.New(uri, cfg, storage)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			prs.Parse(log)
+		}()
+	}
+	wg.Wait()
+
 	log.Info("all pages were successfully parsed")
 
 }
 
+// setupLogger инициализирует и возвращает logger в зависимости от окружения.
+//
+// Принимает строковый параметр, представляющий среду, и возвращает указатель на slog.Logger.
 func setupLogger(env string) *slog.Logger {
 	var log *slog.Logger
 

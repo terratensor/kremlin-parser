@@ -8,9 +8,15 @@ import (
 )
 
 type Config struct {
-	Env         string `yaml:"env" env-default:"development"`
-	StoragePath string `yaml:"storage_path" env-required:"true"`
+	Env         string     `yaml:"env" env-default:"development"`
+	StoragePath string     `yaml:"storage_path" env-required:"true"`
+	StartURLs   []StartURL `yaml:"start_urls"`
 	Parser      `yaml:"parser"`
+}
+
+type StartURL struct {
+	Lang string `yaml:"lang"`
+	Url  string `yaml:"url"`
 }
 
 type Parser struct {

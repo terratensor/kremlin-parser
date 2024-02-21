@@ -19,6 +19,7 @@ import (
 
 type Parser struct {
 	ID         uuid.UUID
+	Lang       string
 	URI        string
 	PageCount  int
 	OutputPath string
@@ -26,10 +27,11 @@ type Parser struct {
 	Meta       *Meta
 }
 
-func New(cfg *config.Config, storage *sqlite.Storage) Parser {
+func New(uri config.StartURL, cfg *config.Config, storage *sqlite.Storage) Parser {
 	parser := Parser{
 		ID:         uuid.New(),
-		URI:        cfg.Parser.URI,
+		Lang:       uri.Lang,
+		URI:        uri.Url,
 		PageCount:  cfg.Parser.PageCount,
 		OutputPath: cfg.Parser.OutputPath,
 		Delay:      cfg.ParseDelay,
@@ -38,11 +40,17 @@ func New(cfg *config.Config, storage *sqlite.Storage) Parser {
 	return parser
 }
 
+// Parse парсит указанное количество страниц rss ленты сайта кремля.
+// Сохраняет каждую страницу в отдельный json файл.
+// При каждом успешном парсинге возвращает ссылку на следующую страницу rss ленты.
+// Делает установленную в конфиге паузу между парсингами (5 сек по умолчанию).
+// Используется logger для записи различных событий во время анализа.
 func (p *Parser) Parse(log *slog.Logger) {
 	const op = "parser.parse"
 	log = log.With(
 		slog.String("op", op),
 		slog.String("parser_id", p.ID.String()),
+		slog.String("language", p.Lang),
 	)
 
 	count := 1
@@ -97,7 +105,8 @@ func (p *Parser) Parse(log *slog.Logger) {
 
 func (p *Parser) getUrl() string {
 	var url string
-	// Если мета еще пустой, то url равен начальному url
+	// Если Meta только инициализирован, то Meta.Self и Meta.Next пусты,
+	// устанавливаем то url равен начальному url,
 	// иначе url равен ссылке на следующую страницу
 	if p.Meta.Self == "" && p.Meta.Next == "" {
 		url = p.URI
