@@ -5,6 +5,7 @@ import (
 	"github.com/terratensor/kremlin-parser/internal/lib/logger/handlers/slogpretty"
 	"github.com/terratensor/kremlin-parser/internal/lib/logger/sl"
 	"github.com/terratensor/kremlin-parser/internal/parser"
+	"github.com/terratensor/kremlin-parser/internal/storage/manticore"
 	"github.com/terratensor/kremlin-parser/internal/storage/sqlite"
 	"log/slog"
 	"os"
@@ -31,6 +32,10 @@ func main() {
 		log.Error("failed to initialize storage", sl.Err(err))
 		os.Exit(1)
 	}
+
+	manticore.New("events")
+
+	panic("Done")
 
 	//var pageCount, outputPath string
 	//
