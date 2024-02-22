@@ -96,7 +96,10 @@ func (p *Parser) Parse(ctx context.Context, log *slog.Logger) {
 		entries := parseEntries(node)
 
 		for _, e := range entries {
-			p.entries.EntryStore.Insert(ctx, &e)
+			err = p.entries.EntryStore.Insert(ctx, &e)
+			if err != nil {
+				log.Error("failed insert entry", sl.Err(err))
+			}
 		}
 
 		//p.bulkInsert(ctx, entries, log)

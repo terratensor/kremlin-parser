@@ -70,7 +70,7 @@ func createTable(apiClient *openapiclient.APIClient, tbl string) error {
 	return nil
 }
 
-func (c *Client) Insert(ctx context.Context, entry *entry.Entry) {
+func (c *Client) Insert(ctx context.Context, entry *entry.Entry) error {
 
 	dbe := &DBEntry{
 		Language:  entry.Language,
@@ -85,13 +85,13 @@ func (c *Client) Insert(ctx context.Context, entry *entry.Entry) {
 	//marshal into JSON buffer
 	buffer, err := json.Marshal(dbe)
 	if err != nil {
-		fmt.Printf("error marshaling JSON: %v\n", err)
+		return fmt.Errorf("error marshaling JSON: %v\n", err)
 	}
 
 	var doc map[string]interface{}
 	err = json.Unmarshal(buffer, &doc)
 	if err != nil {
-		// Handle error
+		return fmt.Errorf("error unmarshaling buffer: %v\n", err)
 	}
 
 	idr := openapiclient.InsertDocumentRequest{
@@ -103,30 +103,33 @@ func (c *Client) Insert(ctx context.Context, entry *entry.Entry) {
 
 	//resp, r, err := apiClient.IndexAPI.Insert(context.Background()).InsertDocumentRequest(insertDocumentRequest).Execute()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `IndexAPI.Insert``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		return fmt.Errorf("Error when calling `IndexAPI.Insert``: %v\n", err)
 	}
 	// response from `Insert`: SuccessResponse
-	fmt.Fprintf(os.Stdout, "Response from `IndexAPI.Insert1`: %v\n", r)
+	//fmt.Fprintf(os.Stdout, "Success Response from `IndexAPI.Insert`: %v\n", r)
 
+	return nil
 }
 
-func (c *Client) Bulk(ctx context.Context, entries *[]entry.Entry) {
+func (c *Client) Bulk(ctx context.Context, entries *[]entry.Entry) error {
 
 	//entries map[string]interface{}
 	log.Println(entries)
 	buffer, err := json.Marshal(entries)
 	if err != nil {
-		fmt.Printf("error marshaling JSON: %v\n", err)
+		return fmt.Errorf("error marshaling JSON: %v\n", err)
 	}
 	//panic("stop")
 
 	_, r, err := c.apiClient.IndexAPI.Bulk(ctx).Body(string(buffer)).Execute()
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `IndexAPI.Insert``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		return fmt.Errorf("Error when calling `IndexAPI.Insert``: %v\n", err)
 	}
 	// response from `Insert`: SuccessResponse
-	fmt.Fprintf(os.Stdout, "Response from `IndexAPI.Insert1`: %v\n", r)
+	fmt.Fprintf(os.Stdout, "Success Response from `IndexAPI.Insert`: %v\n", r)
+
+	return nil
 }
