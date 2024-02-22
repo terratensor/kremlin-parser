@@ -1,13 +1,16 @@
 package main
 
 import (
+	"context"
 	"github.com/terratensor/kremlin-parser/internal/config"
+	"github.com/terratensor/kremlin-parser/internal/entities/entry"
 	"github.com/terratensor/kremlin-parser/internal/lib/logger/handlers/slogpretty"
 	"github.com/terratensor/kremlin-parser/internal/lib/logger/sl"
 	"github.com/terratensor/kremlin-parser/internal/parser"
 	"github.com/terratensor/kremlin-parser/internal/storage/manticore"
 	"log/slog"
 	"os"
+	"os/signal"
 )
 
 const (
@@ -18,6 +21,7 @@ const (
 
 func main() {
 
+	ctx, _ := signal.NotifyContext(context.Background(), os.Interrupt)
 	cfg := config.MustLoad()
 
 	log := setupLogger(cfg.Env)
@@ -25,11 +29,16 @@ func main() {
 
 	log.Debug("logger debug mode enabled")
 
+	var storage entry.StorageInterface
+
 	manticoreClient, err := manticore.New("events")
 	if err != nil {
 		log.Error("failed to initialize manticore client", sl.Err(err))
 		os.Exit(1)
 	}
+
+	storage = manticoreClient
+	entries := entry.NewEntries(storage)
 
 	//var pageCount, outputPath string
 	//
@@ -49,12 +58,11 @@ func main() {
 	//wg.Wait()
 
 	for _, uri := range cfg.StartURLs {
-		prs := parser.New(uri, cfg, manticoreClient)
-		prs.Parse(log)
+		prs := parser.New(uri, cfg, entries)
+		prs.Parse(ctx, log)
 	}
 
 	log.Info("all pages were successfully parsed")
-
 }
 
 // setupLogger инициализирует и возвращает logger в зависимости от окружения.

@@ -2,7 +2,7 @@ package jsonfile
 
 import (
 	"encoding/json"
-	"github.com/terratensor/kremlin-parser/internal/parser"
+	"github.com/terratensor/kremlin-parser/internal/entities/entry"
 	"log"
 	"os"
 )
@@ -13,7 +13,7 @@ func checkError(message string, err error) {
 	}
 }
 
-func WriteJsonFile(entries parser.Entries, outputPath string) {
+func WriteJsonFile(entries entry.Entries, outputPath string) {
 
 	// Create file
 	file, err := os.Create(outputPath)

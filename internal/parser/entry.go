@@ -2,27 +2,17 @@ package parser
 
 import (
 	"fmt"
+	"github.com/terratensor/kremlin-parser/internal/entities/entry"
 	"golang.org/x/net/html"
 	"time"
 )
 
-type Entries []Entry
+func parseEntries(n *html.Node) []entry.Entry {
 
-type Entry struct {
-	Language  string     `json:"language"`
-	Title     string     `json:"title"`
-	Url       string     `json:"url"`
-	Updated   *time.Time `json:"update"`
-	Published *time.Time `json:"published"`
-	Summary   string     `json:"summary"`
-	Content   string     `json:"content"`
-}
-
-func parseEntries(entries Entries, n *html.Node) Entries {
-
+	var entries []entry.Entry
 	var f func(*html.Node)
 
-	entry := Entry{}
+	e := entry.Entry{}
 
 	f = func(n *html.Node) {
 
@@ -30,11 +20,11 @@ func parseEntries(entries Entries, n *html.Node) Entries {
 			for cl := n.FirstChild; cl != nil; cl = cl.NextSibling {
 
 				if cl.Type == html.ElementNode && cl.Data == "title" {
-					entry.Title = getInnerText(cl)
+					e.Title = getInnerText(cl)
 				}
 
 				if cl.Type == html.ElementNode && cl.Data == "id" {
-					entry.Url = getInnerText(cl)
+					e.Url = getInnerText(cl)
 				}
 
 				if cl.Type == html.ElementNode && cl.Data == "updated" {
@@ -44,7 +34,7 @@ func parseEntries(entries Entries, n *html.Node) Entries {
 						fmt.Println(err)
 						return
 					}
-					entry.Updated = &t
+					e.Updated = &t
 				}
 
 				if cl.Type == html.ElementNode && cl.Data == "published" {
@@ -53,20 +43,20 @@ func parseEntries(entries Entries, n *html.Node) Entries {
 						fmt.Println(err)
 						return
 					}
-					entry.Published = &t
+					e.Published = &t
 				}
 
 				if cl.Type == html.ElementNode && cl.Data == "summary" {
-					entry.Summary = getInnerText(cl)
+					e.Summary = getInnerText(cl)
 				}
 
 				if cl.Type == html.ElementNode && cl.Data == "content" {
-					entry.Content = getInnerText(cl)
+					e.Content = getInnerText(cl)
 				}
 
 			}
 
-			entries = append(entries, entry) //fmt.Println(entry)
+			entries = append(entries, e) //fmt.Println(entry)
 		}
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
 			f(c)
