@@ -1,13 +1,14 @@
 package parser
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/gosimple/slug"
 	"github.com/terratensor/kremlin-parser/internal/config"
+	"github.com/terratensor/kremlin-parser/internal/entities/entry"
 	"github.com/terratensor/kremlin-parser/internal/lib/logger/sl"
-	"github.com/terratensor/kremlin-parser/internal/storage/manticore"
 	"golang.org/x/net/html"
 	"log"
 	"log/slog"
@@ -18,26 +19,26 @@ import (
 )
 
 type Parser struct {
-	ID              uuid.UUID
-	Lang            string
-	URI             string
-	PageCount       int
-	OutputPath      string
-	Delay           *time.Duration
-	Meta            *Meta
-	ManticoreClient *manticore.Client
+	ID         uuid.UUID
+	Lang       string
+	URI        string
+	PageCount  int
+	OutputPath string
+	Delay      *time.Duration
+	Meta       *Meta
+	entries    *entry.Entries
 }
 
-func New(uri config.StartURL, cfg *config.Config, client *manticore.Client) Parser {
+func New(uri config.StartURL, cfg *config.Config, entries *entry.Entries) Parser {
 	parser := Parser{
-		ID:              uuid.New(),
-		Lang:            uri.Lang,
-		URI:             uri.Url,
-		PageCount:       cfg.Parser.PageCount,
-		OutputPath:      cfg.Parser.OutputPath,
-		Delay:           cfg.ParseDelay,
-		Meta:            NewMeta(),
-		ManticoreClient: client,
+		ID:         uuid.New(),
+		Lang:       uri.Lang,
+		URI:        uri.Url,
+		PageCount:  cfg.Parser.PageCount,
+		OutputPath: cfg.Parser.OutputPath,
+		Delay:      cfg.ParseDelay,
+		Meta:       NewMeta(),
+		entries:    entries,
 	}
 	return parser
 }
@@ -47,7 +48,7 @@ func New(uri config.StartURL, cfg *config.Config, client *manticore.Client) Pars
 // При каждом успешном парсинге возвращает ссылку на следующую страницу rss ленты.
 // Делает установленную в конфиге паузу между парсингами (5 сек по умолчанию).
 // Используется logger для записи различных событий во время анализа.
-func (p *Parser) Parse(log *slog.Logger) {
+func (p *Parser) Parse(ctx context.Context, log *slog.Logger) {
 	const op = "parser.parse"
 	log = log.With(
 		slog.String("op", op),
@@ -70,7 +71,6 @@ func (p *Parser) Parse(log *slog.Logger) {
 			break
 		}
 
-		var entries Entries
 		path := p.NewFilepath(url)
 
 		if count != p.PageCount || count != 1 {
@@ -93,35 +93,13 @@ func (p *Parser) Parse(log *slog.Logger) {
 		}
 
 		p.Meta = parseMeta(node)
-		entries = parseEntries(entries, node)
+		entries := parseEntries(node)
 
-		//for _, entry := range entries {
-		//	mentry := manticore.Entry{
-		//		Language:  entry.Language,
-		//		Title:     entry.Title,
-		//		Url:       entry.Url,
-		//		Updated:   entry.Updated,
-		//		Published: entry.Published,
-		//		Summary:   entry.Summary,
-		//		Content:   entry.Content,
-		//	}
-		//	p.ManticoreClient.InsertEntries(mentry)
-		//}
-
-		buffer, err := json.Marshal(entries)
-		if err != nil {
-			fmt.Printf("error marshaling JSON: %v\n", err)
+		for _, e := range entries {
+			p.entries.EntryStore.Insert(ctx, &e)
 		}
 
-		log.Info("entries", string(buffer))
-
-		var docs map[string]interface{}
-		err = json.Unmarshal(buffer, &docs)
-		if err != nil {
-			// Handle error
-		}
-
-		p.ManticoreClient.BulkEntries(docs)
+		//p.bulkInsert(ctx, entries, log)
 
 		WriteJsonFile(entries, path)
 		log.Info("path was successful writing", slog.Any("path", path))
@@ -131,6 +109,23 @@ func (p *Parser) Parse(log *slog.Logger) {
 		}
 		count++
 	}
+}
+
+func (p *Parser) bulkInsert(ctx context.Context, entries []entry.Entry, log *slog.Logger) {
+	buffer, err := json.Marshal(entries)
+	if err != nil {
+		fmt.Printf("error marshaling JSON: %v\n", err)
+	}
+
+	//log.Info("entries", string(buffer))
+
+	var docs map[string]interface{}
+	err = json.Unmarshal(buffer, &docs)
+	if err != nil {
+		// Handle error
+	}
+
+	p.entries.EntryStore.Bulk(ctx, &entries)
 }
 
 func (p *Parser) getUrl() string {
@@ -240,7 +235,7 @@ func checkError(message string, err error) {
 	}
 }
 
-func WriteJsonFile(entries Entries, outputPath string) {
+func WriteJsonFile(entries []entry.Entry, outputPath string) {
 
 	// Create file
 	file, err := os.Create(outputPath)

@@ -5,19 +5,21 @@ import (
 	"encoding/json"
 	"fmt"
 	openapiclient "github.com/manticoresoftware/manticoresearch-go"
+	"github.com/terratensor/kremlin-parser/internal/entities/entry"
 	"log"
 	"os"
-	"time"
 )
 
+var _ entry.StorageInterface = &Client{}
+
 type Entry struct {
-	Language  string     `json:"language"`
-	Title     string     `json:"title"`
-	Url       string     `json:"url"`
-	Updated   *time.Time `json:"updated"`
-	Published *time.Time `json:"published"`
-	Summary   string     `json:"summary"`
-	Content   string     `json:"content"`
+	Language  string `json:"language"`
+	Title     string `json:"title"`
+	Url       string `json:"url"`
+	Updated   int64  `json:"updated"`
+	Published int64  `json:"published"`
+	Summary   string `json:"summary"`
+	Content   string `json:"content"`
 }
 
 type Client struct {
@@ -68,7 +70,7 @@ func createTable(apiClient *openapiclient.APIClient, tbl string) error {
 	return nil
 }
 
-func (c *Client) InsertEntries(entry Entry) {
+func (c *Client) Insert(ctx context.Context, entry *entry.Entry) {
 	//log.Println(entry)
 
 	//configuration := openapiclient.NewConfiguration()
@@ -93,7 +95,7 @@ func (c *Client) InsertEntries(entry Entry) {
 		Doc:   doc,
 	}
 
-	_, r, err := c.apiClient.IndexAPI.Insert(context.Background()).InsertDocumentRequest(idr).Execute()
+	_, r, err := c.apiClient.IndexAPI.Insert(ctx).InsertDocumentRequest(idr).Execute()
 
 	//resp, r, err := apiClient.IndexAPI.Insert(context.Background()).InsertDocumentRequest(insertDocumentRequest).Execute()
 	if err != nil {
@@ -105,8 +107,9 @@ func (c *Client) InsertEntries(entry Entry) {
 
 }
 
-func (c *Client) BulkEntries(entries map[string]interface{}) {
+func (c *Client) Bulk(ctx context.Context, entries *[]entry.Entry) {
 
+	//entries map[string]interface{}
 	log.Println(entries)
 	buffer, err := json.Marshal(entries)
 	if err != nil {
@@ -114,7 +117,7 @@ func (c *Client) BulkEntries(entries map[string]interface{}) {
 	}
 	//panic("stop")
 
-	_, r, err := c.apiClient.IndexAPI.Bulk(context.Background()).Body(string(buffer)).Execute()
+	_, r, err := c.apiClient.IndexAPI.Bulk(ctx).Body(string(buffer)).Execute()
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `IndexAPI.Insert``: %v\n", err)

@@ -5,32 +5,33 @@ import (
 	"time"
 )
 
-//type Entries []Entry
+//type Storage []Entry
 
 type Entry struct {
+	Language  string     `json:"language"`
 	Title     string     `json:"title"`
 	Url       string     `json:"url"`
-	Updated   *time.Time `json:"update"`
+	Updated   *time.Time `json:"updated"`
 	Published *time.Time `json:"published"`
 	Summary   string     `json:"summary"`
 	Content   string     `json:"content"`
 }
 
-type Storage interface {
-	Create(ctx context.Context, entry *Entry) error
-	BatchSave(ctx context.Context, entries Entries) error
+type StorageInterface interface {
+	Insert(ctx context.Context, entry *Entry)
+	Bulk(ctx context.Context, entries *[]Entry)
 }
 
 type Entries struct {
-	EntryStore Storage
+	EntryStore StorageInterface
 }
 
-func NewEntries(store Storage) *Entries {
+func NewEntries(store StorageInterface) *Entries {
 	return &Entries{
 		EntryStore: store,
 	}
 }
 
-func (e *Entry) Create(entry *Entry) error {
+func (e *Entry) Insert(entry *Entry) error {
 	return nil
 }
