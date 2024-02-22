@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func parseEntries(n *html.Node) []entry.Entry {
+func (p *Parser) parseEntries(n *html.Node) []entry.Entry {
 
 	var entries []entry.Entry
 	var f func(*html.Node)
@@ -56,6 +56,7 @@ func parseEntries(n *html.Node) []entry.Entry {
 
 			}
 
+			e.Language = p.Lang
 			entries = append(entries, e) //fmt.Println(entry)
 		}
 		for c := n.FirstChild; c != nil; c = c.NextSibling {

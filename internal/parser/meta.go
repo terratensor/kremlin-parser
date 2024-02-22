@@ -31,7 +31,7 @@ func NewMeta() *Meta {
 // parseMeta парсит данный html.Node для извлечения мета-информации.
 //
 // Принимает указатель на html.Node в качестве параметра и возвращает указатель на структуру Meta.
-func parseMeta(node *html.Node) *Meta {
+func (p *Parser) parseMeta(node *html.Node) {
 	var f func(*html.Node)
 
 	meta := Meta{}
@@ -78,5 +78,5 @@ func parseMeta(node *html.Node) *Meta {
 	}
 	f(node)
 
-	return &meta
+	p.Meta = &meta
 }

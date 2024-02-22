@@ -92,8 +92,8 @@ func (p *Parser) Parse(ctx context.Context, log *slog.Logger) {
 			os.Exit(1)
 		}
 
-		p.Meta = parseMeta(node)
-		entries := parseEntries(node)
+		p.parseMeta(node)
+		entries := p.parseEntries(node)
 
 		for _, e := range entries {
 			err = p.entries.EntryStore.Insert(ctx, &e)
@@ -102,7 +102,10 @@ func (p *Parser) Parse(ctx context.Context, log *slog.Logger) {
 			}
 		}
 
-		//p.bulkInsert(ctx, entries, log)
+		//err = p.entries.EntryStore.Bulk(ctx, &entries)
+		//if err != nil {
+		//	log.Error("failed bulk insert entries", sl.Err(err))
+		//}
 
 		WriteJsonFile(entries, path)
 		log.Info("path was successful writing", slog.Any("path", path))
