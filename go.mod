@@ -15,6 +15,7 @@ require (
 	github.com/BurntSushi/toml v1.2.1 // indirect
 	github.com/gosimple/unidecode v1.0.1 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
+	github.com/manticoresoftware/manticoresearch-go v1.0.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	golang.org/x/sys v0.16.0 // indirect
