@@ -6,10 +6,8 @@ import (
 	"github.com/terratensor/kremlin-parser/internal/lib/logger/sl"
 	"github.com/terratensor/kremlin-parser/internal/parser"
 	"github.com/terratensor/kremlin-parser/internal/storage/manticore"
-	"github.com/terratensor/kremlin-parser/internal/storage/sqlite"
 	"log/slog"
 	"os"
-	"sync"
 )
 
 const (
@@ -27,15 +25,11 @@ func main() {
 
 	log.Debug("logger debug mode enabled")
 
-	storage, err := sqlite.New(cfg.StoragePath)
+	manticoreClient, err := manticore.New("events")
 	if err != nil {
-		log.Error("failed to initialize storage", sl.Err(err))
+		log.Error("failed to initialize manticore client", sl.Err(err))
 		os.Exit(1)
 	}
-
-	manticore.New("events")
-
-	panic("Done")
 
 	//var pageCount, outputPath string
 	//
@@ -43,16 +37,21 @@ func main() {
 	//flag.StringVarP(&cfg.Parser.PageCount, "page-count", "p", "1", "спарсить указанное количество страниц")
 	//flag.Parse()
 
-	var wg sync.WaitGroup
+	//var wg sync.WaitGroup
+	//for _, uri := range cfg.StartURLs {
+	//	prs := parser.New(uri, cfg, manticoreClient)
+	//	wg.Add(1)
+	//	go func() {
+	//		defer wg.Done()
+	//		prs.Parse(log)
+	//	}()
+	//}
+	//wg.Wait()
+
 	for _, uri := range cfg.StartURLs {
-		prs := parser.New(uri, cfg, storage)
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			prs.Parse(log)
-		}()
+		prs := parser.New(uri, cfg, manticoreClient)
+		prs.Parse(log)
 	}
-	wg.Wait()
 
 	log.Info("all pages were successfully parsed")
 

@@ -7,7 +7,7 @@ import (
 	"github.com/gosimple/slug"
 	"github.com/terratensor/kremlin-parser/internal/config"
 	"github.com/terratensor/kremlin-parser/internal/lib/logger/sl"
-	"github.com/terratensor/kremlin-parser/internal/storage/sqlite"
+	"github.com/terratensor/kremlin-parser/internal/storage/manticore"
 	"golang.org/x/net/html"
 	"log"
 	"log/slog"
@@ -18,24 +18,26 @@ import (
 )
 
 type Parser struct {
-	ID         uuid.UUID
-	Lang       string
-	URI        string
-	PageCount  int
-	OutputPath string
-	Delay      *time.Duration
-	Meta       *Meta
+	ID              uuid.UUID
+	Lang            string
+	URI             string
+	PageCount       int
+	OutputPath      string
+	Delay           *time.Duration
+	Meta            *Meta
+	ManticoreClient *manticore.Client
 }
 
-func New(uri config.StartURL, cfg *config.Config, storage *sqlite.Storage) Parser {
+func New(uri config.StartURL, cfg *config.Config, client *manticore.Client) Parser {
 	parser := Parser{
-		ID:         uuid.New(),
-		Lang:       uri.Lang,
-		URI:        uri.Url,
-		PageCount:  cfg.Parser.PageCount,
-		OutputPath: cfg.Parser.OutputPath,
-		Delay:      cfg.ParseDelay,
-		Meta:       NewMeta(),
+		ID:              uuid.New(),
+		Lang:            uri.Lang,
+		URI:             uri.Url,
+		PageCount:       cfg.Parser.PageCount,
+		OutputPath:      cfg.Parser.OutputPath,
+		Delay:           cfg.ParseDelay,
+		Meta:            NewMeta(),
+		ManticoreClient: client,
 	}
 	return parser
 }
@@ -92,6 +94,34 @@ func (p *Parser) Parse(log *slog.Logger) {
 
 		p.Meta = parseMeta(node)
 		entries = parseEntries(entries, node)
+
+		//for _, entry := range entries {
+		//	mentry := manticore.Entry{
+		//		Language:  entry.Language,
+		//		Title:     entry.Title,
+		//		Url:       entry.Url,
+		//		Updated:   entry.Updated,
+		//		Published: entry.Published,
+		//		Summary:   entry.Summary,
+		//		Content:   entry.Content,
+		//	}
+		//	p.ManticoreClient.InsertEntries(mentry)
+		//}
+
+		buffer, err := json.Marshal(entries)
+		if err != nil {
+			fmt.Printf("error marshaling JSON: %v\n", err)
+		}
+
+		log.Info("entries", string(buffer))
+
+		var docs map[string]interface{}
+		err = json.Unmarshal(buffer, &docs)
+		if err != nil {
+			// Handle error
+		}
+
+		p.ManticoreClient.BulkEntries(docs)
 
 		WriteJsonFile(entries, path)
 		log.Info("path was successful writing", slog.Any("path", path))

@@ -2,12 +2,29 @@ package manticore
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	openapiclient "github.com/manticoresoftware/manticoresearch-go"
 	"log"
+	"os"
+	"time"
 )
 
-func New(tbl string) {
+type Entry struct {
+	Language  string     `json:"language"`
+	Title     string     `json:"title"`
+	Url       string     `json:"url"`
+	Updated   *time.Time `json:"updated"`
+	Published *time.Time `json:"published"`
+	Summary   string     `json:"summary"`
+	Content   string     `json:"content"`
+}
+
+type Client struct {
+	apiClient *openapiclient.APIClient
+}
+
+func New(tbl string) (*Client, error) {
 	// Initialize ApiClient
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
@@ -23,18 +40,86 @@ func New(tbl string) {
 		indexValue := myMap["Index"]
 
 		if indexValue != tbl {
-			createTable(apiClient, tbl)
+			err := createTable(apiClient, tbl)
+			if err != nil {
+				return nil, err
+			}
 		}
 	} else {
-		createTable(apiClient, tbl)
+		err := createTable(apiClient, tbl)
+		if err != nil {
+			return nil, err
+		}
 	}
+
+	return &Client{apiClient: apiClient}, nil
 }
 
-func createTable(apiClient *openapiclient.APIClient, tbl string) {
-	query := fmt.Sprintf(`create table %v(language string, url string, title text, summary text, content text, created timestamp, updated timestamp) engine='columnar' morphology='stem_en,stem_ru,libstemmer_de,libstemmer_fr,libstemmer_es,libstemmer_pt'`, tbl)
+func createTable(apiClient *openapiclient.APIClient, tbl string) error {
+	query := fmt.Sprintf(`create table %v(language string, url string, title text, summary text, content text, published timestamp, updated timestamp) engine='columnar' morphology='stem_en,stem_ru,libstemmer_de,libstemmer_fr,libstemmer_es,libstemmer_pt'`, tbl)
 
 	sqlreq := apiClient.UtilsAPI.Sql(context.Background()).Body(query)
-	resp, _, _ := apiClient.UtilsAPI.SqlExecute(sqlreq)
+	_, _, err := apiClient.UtilsAPI.SqlExecute(sqlreq)
+	if err != nil {
+		return err
+	}
 
-	log.Println(resp)
+	//log.Println(resp)
+	return nil
+}
+
+func (c *Client) InsertEntries(entry Entry) {
+	//log.Println(entry)
+
+	//configuration := openapiclient.NewConfiguration()
+	//apiClient := openapiclient.NewAPIClient(configuration)
+
+	//marshal into JSON buffer
+	buffer, err := json.Marshal(entry)
+	if err != nil {
+		fmt.Printf("error marshaling JSON: %v\n", err)
+	}
+
+	//log.Println(string(buffer))
+
+	var doc map[string]interface{}
+	err = json.Unmarshal(buffer, &doc)
+	if err != nil {
+		// Handle error
+	}
+
+	idr := openapiclient.InsertDocumentRequest{
+		Index: "events",
+		Doc:   doc,
+	}
+
+	_, r, err := c.apiClient.IndexAPI.Insert(context.Background()).InsertDocumentRequest(idr).Execute()
+
+	//resp, r, err := apiClient.IndexAPI.Insert(context.Background()).InsertDocumentRequest(insertDocumentRequest).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `IndexAPI.Insert``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+	}
+	// response from `Insert`: SuccessResponse
+	fmt.Fprintf(os.Stdout, "Response from `IndexAPI.Insert1`: %v\n", r)
+
+}
+
+func (c *Client) BulkEntries(entries map[string]interface{}) {
+
+	log.Println(entries)
+	buffer, err := json.Marshal(entries)
+	if err != nil {
+		fmt.Printf("error marshaling JSON: %v\n", err)
+	}
+	//panic("stop")
+
+	_, r, err := c.apiClient.IndexAPI.Bulk(context.Background()).Body(string(buffer)).Execute()
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `IndexAPI.Insert``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+	}
+	// response from `Insert`: SuccessResponse
+	fmt.Fprintf(os.Stdout, "Response from `IndexAPI.Insert1`: %v\n", r)
 }
