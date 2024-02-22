@@ -58,15 +58,15 @@ func New(tbl string) (*Client, error) {
 }
 
 func createTable(apiClient *openapiclient.APIClient, tbl string) error {
-	query := fmt.Sprintf(`create table %v(language string, url string, title text, summary text, content text, published timestamp, updated timestamp) engine='columnar' morphology='stem_en,stem_ru,libstemmer_de,libstemmer_fr,libstemmer_es,libstemmer_pt'`, tbl)
 
-	sqlreq := apiClient.UtilsAPI.Sql(context.Background()).Body(query)
-	_, _, err := apiClient.UtilsAPI.SqlExecute(sqlreq)
+	query := fmt.Sprintf(`create table %v(language string, url string, title text, summary text, content text, published timestamp, updated timestamp) engine='columnar' morphology='stem_en,stem_ru,libstemmer_de,libstemmer_fr,libstemmer_es,libstemmer_pt' html_remove_elements = 'style, script' html_strip = '1'`, tbl)
+
+	sqlRequest := apiClient.UtilsAPI.Sql(context.Background()).Body(query)
+	_, _, err := apiClient.UtilsAPI.SqlExecute(sqlRequest)
 	if err != nil {
 		return err
 	}
 
-	//log.Println(resp)
 	return nil
 }
 
