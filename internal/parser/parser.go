@@ -95,10 +95,20 @@ func (p *Parser) Parse(ctx context.Context, log *slog.Logger) {
 		p.parseMeta(node)
 		entries := p.parseEntries(node)
 
+		// Итерируемся по слайсу спарсеных entries, ищем по url запись в мантикоре,
+		// если записи нет nil, то делаем запись в мантикору
+		// todo сделать проверку и логику для update, когда запись есть но поля updated не совпадают
 		for _, e := range entries {
-			err = p.entries.EntryStore.Insert(ctx, &e)
+			dbe, err := p.entries.EntryStore.FindByUrl(ctx, e.Url)
 			if err != nil {
-				log.Error("failed insert entry", sl.Err(err))
+				log.Error("failed find entry by url", sl.Err(err))
+			}
+			if dbe == nil {
+				err = p.entries.EntryStore.Insert(ctx, &e)
+				if err != nil {
+					log.Error("failed insert entry", sl.Err(err))
+				}
+				log.Info("entry successful inserted", e.Url)
 			}
 		}
 
