@@ -8,9 +8,11 @@ import (
 	"github.com/terratensor/kremlin-parser/internal/lib/logger/sl"
 	"github.com/terratensor/kremlin-parser/internal/parser"
 	"github.com/terratensor/kremlin-parser/internal/storage/manticore"
+	"log"
 	"log/slog"
 	"os"
 	"os/signal"
+	"time"
 )
 
 const (
@@ -21,6 +23,7 @@ const (
 
 func main() {
 
+	prepareTimeZone()
 	ctx, _ := signal.NotifyContext(context.Background(), os.Interrupt)
 	cfg := config.MustLoad()
 
@@ -96,4 +99,20 @@ func setupPrettySlog() *slog.Logger {
 	handler := opts.NewPrettyHandler(os.Stdout)
 
 	return slog.New(handler)
+}
+
+func prepareTimeZone() {
+	if tz := os.Getenv("TZ"); tz != "" {
+		var err error
+		time.Local, err = time.LoadLocation(tz)
+		if err != nil {
+			log.Printf("error loading location '%s': %v\n", tz, err)
+		}
+	}
+
+	// output current time zone
+	tnow := time.Now()
+	tz, _ := tnow.Zone()
+	log.Printf("Local time zone %s. Service started at %s", tz,
+		tnow.Format("2006-01-02T15:04:05.000 MST"))
 }
