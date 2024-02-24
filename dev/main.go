@@ -2,10 +2,22 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	openapiclient "github.com/manticoresoftware/manticoresearch-go"
+	"log"
 	"os"
 )
+
+type DBEntry struct {
+	Language  string `json:"language"`
+	Title     string `json:"title"`
+	Url       string `json:"url"`
+	Updated   int64  `json:"updated"`
+	Published int64  `json:"published"`
+	Summary   string `json:"summary"`
+	Content   string `json:"content"`
+}
 
 func main() {
 	//body := "SHOW TABLES" // string | A query parameter string.
@@ -17,7 +29,7 @@ func main() {
 	searchRequest := *openapiclient.NewSearchRequest("events")
 
 	// Пример для запроса фильтра по url
-	filter := map[string]interface{}{"url": "http://kremlin.ru/events/president/news/73519"}
+	filter := map[string]interface{}{"url": "http://kremlin.ru/events/president/news/73538"}
 	query := map[string]interface{}{"equals": filter}
 
 	//log.Printf("%v", query)
@@ -33,8 +45,32 @@ func main() {
 	total := resp.GetHits()
 	tot := total.GetTotal()
 
+	// response превращаем в объект entry
+	entry := makeDBEntry(resp)
+	log.Println(entry)
+
 	fmt.Fprintf(os.Stdout, "resp.Hits: %v\n", tot)
 	// response from `Sql`: []map[string]interface{}
 	fmt.Fprintf(os.Stdout, "Response from `UtilsAPI.Sql`: %v\n", resp)
-	//fmt.Fprintf(os.Stdout, "Response from `UtilsAPI.Sql`: %v\n", r)
+}
+
+func makeDBEntry(resp *openapiclient.SearchResponse) *DBEntry {
+	var hits []map[string]interface{}
+	hits = resp.Hits.Hits
+
+	hit := hits[0]
+
+	sr := hit["_source"]
+	jsonData, err := json.Marshal(sr)
+
+	var entry DBEntry
+	err = json.Unmarshal(jsonData, &entry)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("Title: %s, Summary: %v\n", entry.Title, entry.Summary)
+	log.Println(string(jsonData))
+
+	return &entry
 }
