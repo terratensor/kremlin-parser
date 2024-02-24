@@ -6,7 +6,9 @@ import (
 	"fmt"
 	openapiclient "github.com/manticoresoftware/manticoresearch-go"
 	"github.com/terratensor/kremlin-parser/internal/entities/entry"
+	"log"
 	"os"
+	"time"
 )
 
 var _ entry.StorageInterface = &Client{}
@@ -100,13 +102,10 @@ func (c *Client) Insert(ctx context.Context, entry *entry.Entry) error {
 
 	_, r, err := c.apiClient.IndexAPI.Insert(ctx).InsertDocumentRequest(idr).Execute()
 
-	//resp, r, err := apiClient.IndexAPI.Insert(context.Background()).InsertDocumentRequest(insertDocumentRequest).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
 		return fmt.Errorf("Error when calling `IndexAPI.Insert``: %v\n", err)
 	}
-	// response from `Insert`: SuccessResponse
-	//fmt.Fprintf(os.Stdout, "Success Response from `IndexAPI.Insert`: %v\n", r)
 
 	return nil
 }
@@ -134,4 +133,64 @@ func (c *Client) Bulk(ctx context.Context, entries *[]entry.Entry) error {
 	fmt.Fprintf(os.Stdout, "Success Response from `IndexAPI.Insert`: %v\n", r)
 
 	return nil
+}
+
+func (c *Client) FindByUrl(ctx context.Context, url string) (*entry.Entry, error) {
+	// response from `Search`: SearchRequest
+	searchRequest := *openapiclient.NewSearchRequest("events")
+
+	// Perform a search
+	// Пример для запроса фильтра по url
+	filter := map[string]interface{}{"url": url}
+	query := map[string]interface{}{"equals": filter}
+
+	searchRequest.SetQuery(query)
+	resp, r, err := c.apiClient.SearchAPI.Search(context.Background()).SearchRequest(searchRequest).Execute()
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		return nil, fmt.Errorf("Error when calling `SearchAPI.Search.Equals``: %v\n", err)
+	}
+
+	dbe := makeDBEntry(resp)
+	if dbe == nil {
+		return nil, nil
+	}
+	updated := time.Unix(dbe.Updated, 0)
+	published := time.Unix(dbe.Published, 0)
+
+	ent := &entry.Entry{
+		Language:  dbe.Language,
+		Title:     dbe.Title,
+		Url:       dbe.Url,
+		Updated:   &updated,
+		Published: &published,
+		Summary:   dbe.Summary,
+		Content:   dbe.Content,
+	}
+
+	return ent, nil
+}
+
+func makeDBEntry(resp *openapiclient.SearchResponse) *DBEntry {
+	var hits []map[string]interface{}
+	hits = resp.Hits.Hits
+
+	// Если слайс Hits пустой (0) значит нет совпадений
+	if len(hits) == 0 {
+		return nil
+	}
+
+	hit := hits[0]
+
+	sr := hit["_source"]
+	jsonData, err := json.Marshal(sr)
+
+	var dbe DBEntry
+	err = json.Unmarshal(jsonData, &dbe)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return &dbe
 }

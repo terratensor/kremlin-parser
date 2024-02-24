@@ -18,6 +18,7 @@ type Entry struct {
 type StorageInterface interface {
 	Insert(ctx context.Context, entry *Entry) error
 	Bulk(ctx context.Context, entries *[]Entry) error
+	FindByUrl(ctx context.Context, url string) (*Entry, error)
 }
 
 type Entries struct {
