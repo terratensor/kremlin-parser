@@ -8,6 +8,7 @@ import (
 	"github.com/terratensor/kremlin-parser/internal/entities/entry"
 	"log"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -25,6 +26,20 @@ type DBEntry struct {
 
 type Client struct {
 	apiClient *openapiclient.APIClient
+}
+
+func NewDBEntry(entry *entry.Entry) *DBEntry {
+	dbe := &DBEntry{
+		Language:  entry.Language,
+		Title:     entry.Title,
+		Url:       entry.Url,
+		Updated:   entry.Updated.Unix(),
+		Published: entry.Published.Unix(),
+		Summary:   entry.Summary,
+		Content:   entry.Content,
+	}
+
+	return dbe
 }
 
 func New(tbl string) (*Client, error) {
@@ -110,6 +125,38 @@ func (c *Client) Insert(ctx context.Context, entry *entry.Entry) error {
 	return nil
 }
 
+func (c *Client) Update(ctx context.Context, entry *entry.Entry) error {
+	dbe := NewDBEntry(entry)
+
+	//marshal into JSON buffer
+	buffer, err := json.Marshal(dbe)
+	if err != nil {
+		return fmt.Errorf("error marshaling JSON: %v\n", err)
+	}
+
+	var doc map[string]interface{}
+	err = json.Unmarshal(buffer, &doc)
+	if err != nil {
+		return fmt.Errorf("error unmarshaling buffer: %v\n", err)
+	}
+
+	udr := openapiclient.UpdateDocumentRequest{
+		Index: "events",
+		Id:    entry.ID,
+		Doc:   doc,
+	}
+
+	//log.Println(udr)
+	_, r, err := c.apiClient.IndexAPI.Update(ctx).UpdateDocumentRequest(udr).Execute()
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		return fmt.Errorf("Error when calling `IndexAPI.Update``: %v\n", err)
+	}
+
+	return nil
+}
+
 func (c *Client) Bulk(ctx context.Context, entries *[]entry.Entry) error {
 
 	var serializedEntries string
@@ -152,14 +199,22 @@ func (c *Client) FindByUrl(ctx context.Context, url string) (*entry.Entry, error
 		return nil, fmt.Errorf("Error when calling `SearchAPI.Search.Equals``: %v\n", err)
 	}
 
+	id, err := getEntryID(resp)
+	if err != nil {
+		return nil, err
+	}
+
 	dbe := makeDBEntry(resp)
 	if dbe == nil {
 		return nil, nil
 	}
+	//log.Printf("id %d\n", *id)
+	//log.Printf("dbe %v\n", dbe)
 	updated := time.Unix(dbe.Updated, 0)
 	published := time.Unix(dbe.Published, 0)
 
 	ent := &entry.Entry{
+		ID:        id,
 		Language:  dbe.Language,
 		Title:     dbe.Title,
 		Url:       dbe.Url,
@@ -193,4 +248,27 @@ func makeDBEntry(resp *openapiclient.SearchResponse) *DBEntry {
 	}
 
 	return &dbe
+}
+
+func getEntryID(resp *openapiclient.SearchResponse) (*int64, error) {
+	var hits []map[string]interface{}
+	var _id interface{}
+
+	hits = resp.Hits.Hits
+
+	// Если слайс Hits пустой (0) значит нет совпадений
+	if len(hits) == 0 {
+		return nil, nil
+	}
+
+	hit := hits[0]
+
+	_id = hit["_id"]
+	id, err := strconv.ParseInt(_id.(string), 10, 64)
+	//log.Printf("id %d\n", id)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to parse ID to int64: %v\n", resp)
+	}
+
+	return &id, nil
 }

@@ -110,6 +110,17 @@ func (p *Parser) Parse(ctx context.Context, log *slog.Logger) {
 				}
 				log.Info("entry successful inserted", e.Url)
 			}
+			if !matchTimes(dbe, e) {
+				e.ID = dbe.ID
+				fmt.Fprintf(os.Stdout, "eid %d\n", *e.ID)
+				fmt.Fprintf(os.Stdout, "dbeid %d\n", *dbe.ID)
+				//panic("stop")
+				err = p.entries.EntryStore.Update(ctx, &e)
+				if err != nil {
+					log.Error("failed update entry", sl.Err(err))
+				}
+				log.Info("entry successful updated", e.Url)
+			}
 		}
 
 		//err = p.entries.EntryStore.Bulk(ctx, &entries)
@@ -264,4 +275,20 @@ func WriteJsonFile(entries []entry.Entry, outputPath string) {
 	}
 	_, err = file.Write(aJson)
 	checkError("Cannot write to the file", err)
+}
+
+func matchTimes(dbe *entry.Entry, e entry.Entry) bool {
+	// Приводим время в обоих объектах к GMT+4, как на сайте Кремля
+	loc, _ := time.LoadLocation("Etc/GMT-4")
+	dbeTime := dbe.Updated.In(loc)
+	eTime := e.Updated.In(loc)
+
+	if dbeTime != eTime {
+		log.Printf("`updated` fields do not match dbe updated %v", dbeTime)
+		log.Printf("`updated` fields do not match prs updated %v", eTime)
+		//log.Printf("Entry: %v", *dbe)
+		//log.Printf("Entry: %v", e)
+		return false
+	}
+	return true
 }
