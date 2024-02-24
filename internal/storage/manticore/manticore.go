@@ -6,7 +6,6 @@ import (
 	"fmt"
 	openapiclient "github.com/manticoresoftware/manticoresearch-go"
 	"github.com/terratensor/kremlin-parser/internal/entities/entry"
-	"log"
 	"os"
 )
 
@@ -114,15 +113,18 @@ func (c *Client) Insert(ctx context.Context, entry *entry.Entry) error {
 
 func (c *Client) Bulk(ctx context.Context, entries *[]entry.Entry) error {
 
-	//entries map[string]interface{}
-	log.Println(entries)
-	buffer, err := json.Marshal(entries)
-	if err != nil {
-		return fmt.Errorf("error marshaling JSON: %v\n", err)
+	var serializedEntries string
+	for _, e := range *entries {
+		eJSON, err := json.Marshal(e)
+		if err != nil {
+			return fmt.Errorf("error marshaling JSON: %v\n", err)
+		}
+		serializedEntries += string(eJSON) + "\n"
 	}
-	//panic("stop")
 
-	_, r, err := c.apiClient.IndexAPI.Bulk(ctx).Body(string(buffer)).Execute()
+	fmt.Println(serializedEntries)
+
+	_, r, err := c.apiClient.IndexAPI.Bulk(ctx).Body(serializedEntries).Execute()
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
