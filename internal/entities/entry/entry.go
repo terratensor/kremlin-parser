@@ -6,6 +6,7 @@ import (
 )
 
 type Entry struct {
+	ID        *int64     `json:"id,omitempty"`
 	Language  string     `json:"language"`
 	Title     string     `json:"title"`
 	Url       string     `json:"url"`
@@ -17,6 +18,7 @@ type Entry struct {
 
 type StorageInterface interface {
 	Insert(ctx context.Context, entry *Entry) error
+	Update(ctx context.Context, entry *Entry) error
 	Bulk(ctx context.Context, entries *[]Entry) error
 	FindByUrl(ctx context.Context, url string) (*Entry, error)
 }
