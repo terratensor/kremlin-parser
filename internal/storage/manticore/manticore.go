@@ -140,19 +140,20 @@ func (c *Client) Update(ctx context.Context, entry *entry.Entry) error {
 		return fmt.Errorf("error unmarshaling buffer: %v\n", err)
 	}
 
-	udr := openapiclient.UpdateDocumentRequest{
+	idr := openapiclient.InsertDocumentRequest{
 		Index: "events",
 		Id:    entry.ID,
 		Doc:   doc,
 	}
 
-	//log.Println(udr)
-	_, r, err := c.apiClient.IndexAPI.Update(ctx).UpdateDocumentRequest(udr).Execute()
+	_, r, err := c.apiClient.IndexAPI.Replace(ctx).InsertDocumentRequest(idr).Execute()
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
-		return fmt.Errorf("Error when calling `IndexAPI.Update``: %v\n", err)
+		return fmt.Errorf("Error when calling `IndexAPI.Replace``: %v\n", err)
 	}
+
+	log.Printf("Success `IndexAPI.Replace`: %v\n", r)
 
 	return nil
 }

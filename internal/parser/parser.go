@@ -109,17 +109,19 @@ func (p *Parser) Parse(ctx context.Context, log *slog.Logger) {
 					log.Error("failed insert entry", sl.Err(err))
 				}
 				log.Info("entry successful inserted", e.Url)
-			}
-			if !matchTimes(dbe, e) {
-				e.ID = dbe.ID
-				fmt.Fprintf(os.Stdout, "eid %d\n", *e.ID)
-				fmt.Fprintf(os.Stdout, "dbeid %d\n", *dbe.ID)
-				//panic("stop")
-				err = p.entries.EntryStore.Update(ctx, &e)
-				if err != nil {
-					log.Error("failed update entry", sl.Err(err))
+			} else {
+				if !matchTimes(dbe, e) {
+					e.ID = dbe.ID
+					fmt.Fprintf(os.Stdout, "eid %d\n", *e.ID)
+					fmt.Fprintf(os.Stdout, "dbeid %d\n", *dbe.ID)
+
+					err = p.entries.EntryStore.Update(ctx, &e)
+					if err != nil {
+						log.Error("failed update entry", sl.Err(err))
+					} else {
+						log.Info("entry successful updated", e.Url)
+					}
 				}
-				log.Info("entry successful updated", e.Url)
 			}
 		}
 
