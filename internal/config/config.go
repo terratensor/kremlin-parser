@@ -19,7 +19,7 @@ type StartURL struct {
 }
 
 type Parser struct {
-	URI        string         `yaml:"URI" env-default:"http://kremlin.ru/events/all/feed"`
+	ResourceID int            `yaml:"resource_id" env-default:"1"`
 	PageCount  int            `yaml:"page_count" env-default:"1"`
 	OutputPath string         `yaml:"output_path" env-default:"./data"`
 	ParseDelay *time.Duration `yaml:"parse_delay" env-default:"5s"`

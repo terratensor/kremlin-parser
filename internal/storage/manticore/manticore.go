@@ -14,14 +14,42 @@ import (
 
 var _ entry.StorageInterface = &Client{}
 
+type Response struct {
+	Took     int  `json:"took"`
+	TimedOut bool `json:"timed_out"`
+	Hits     struct {
+		Total         int    `json:"total"`
+		TotalRelation string `json:"total_relation"`
+		Hits          []struct {
+			Id     string `json:"_id"`
+			Score  int    `json:"_score"`
+			Source struct {
+				Title      string `json:"title"`
+				Summary    string `json:"summary"`
+				Content    string `json:"content"`
+				Published  int    `json:"published"`
+				Updated    int    `json:"updated"`
+				Language   string `json:"language"`
+				Url        string `json:"url"`
+				Author     string `json:"author"`
+				Number     string `json:"number"`
+				ResourceID int    `json:"resource_id"`
+			} `json:"_source"`
+		} `json:"hits"`
+	} `json:"hits"`
+}
+
 type DBEntry struct {
-	Language  string `json:"language"`
-	Title     string `json:"title"`
-	Url       string `json:"url"`
-	Updated   int64  `json:"updated"`
-	Published int64  `json:"published"`
-	Summary   string `json:"summary"`
-	Content   string `json:"content"`
+	Language   string `json:"language"`
+	Title      string `json:"title"`
+	Url        string `json:"url"`
+	Updated    int64  `json:"updated"`
+	Published  int64  `json:"published"`
+	Summary    string `json:"summary"`
+	Content    string `json:"content"`
+	Author     string `json:"author"`
+	Number     string `json:"number"`
+	ResourceID int    `json:"resource_id"`
 }
 
 type Client struct {
@@ -30,13 +58,16 @@ type Client struct {
 
 func NewDBEntry(entry *entry.Entry) *DBEntry {
 	dbe := &DBEntry{
-		Language:  entry.Language,
-		Title:     entry.Title,
-		Url:       entry.Url,
-		Updated:   entry.Updated.Unix(),
-		Published: entry.Published.Unix(),
-		Summary:   entry.Summary,
-		Content:   entry.Content,
+		Language:   entry.Language,
+		Title:      entry.Title,
+		Url:        entry.Url,
+		Updated:    entry.Updated.Unix(),
+		Published:  entry.Published.Unix(),
+		Summary:    entry.Summary,
+		Content:    entry.Content,
+		Author:     entry.Author,
+		Number:     entry.Number,
+		ResourceID: entry.ResourceID,
 	}
 
 	return dbe
@@ -75,7 +106,7 @@ func New(tbl string) (*Client, error) {
 
 func createTable(apiClient *openapiclient.APIClient, tbl string) error {
 
-	query := fmt.Sprintf(`create table %v(language string, url string, title text, summary text, content text, published timestamp, updated timestamp) engine='columnar' morphology='stem_en, stem_ru, libstemmer_de, libstemmer_fr, libstemmer_es, libstemmer_pt' html_remove_elements = 'style, script' html_strip = '1' index_sp='1'`, tbl)
+	query := fmt.Sprintf(`create table %v(language string, url string, title text, summary text, content text, published timestamp, updated timestamp, author string, number string, resource_id int) engine='columnar' min_infix_len='3' index_exact_words='1' morphology='stem_en, stem_ru, libstemmer_de, libstemmer_fr, libstemmer_es, libstemmer_pt' html_remove_elements = 'style, script' html_strip = '1' index_sp='1'`, tbl)
 
 	sqlRequest := apiClient.UtilsAPI.Sql(context.Background()).Body(query)
 	_, _, err := apiClient.UtilsAPI.SqlExecute(sqlRequest)
@@ -88,15 +119,7 @@ func createTable(apiClient *openapiclient.APIClient, tbl string) error {
 
 func (c *Client) Insert(ctx context.Context, entry *entry.Entry) error {
 
-	dbe := &DBEntry{
-		Language:  entry.Language,
-		Title:     entry.Title,
-		Url:       entry.Url,
-		Updated:   entry.Updated.Unix(),
-		Published: entry.Published.Unix(),
-		Summary:   entry.Summary,
-		Content:   entry.Content,
-	}
+	dbe := NewDBEntry(entry)
 
 	//marshal into JSON buffer
 	buffer, err := json.Marshal(dbe)
@@ -215,14 +238,17 @@ func (c *Client) FindByUrl(ctx context.Context, url string) (*entry.Entry, error
 	published := time.Unix(dbe.Published, 0)
 
 	ent := &entry.Entry{
-		ID:        id,
-		Language:  dbe.Language,
-		Title:     dbe.Title,
-		Url:       dbe.Url,
-		Updated:   &updated,
-		Published: &published,
-		Summary:   dbe.Summary,
-		Content:   dbe.Content,
+		ID:         id,
+		Language:   dbe.Language,
+		Title:      dbe.Title,
+		Url:        dbe.Url,
+		Updated:    &updated,
+		Published:  &published,
+		Summary:    dbe.Summary,
+		Content:    dbe.Content,
+		Author:     dbe.Author,
+		Number:     dbe.Number,
+		ResourceID: dbe.ResourceID,
 	}
 
 	return ent, nil

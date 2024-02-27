@@ -20,6 +20,7 @@ import (
 
 type Parser struct {
 	ID         uuid.UUID
+	ResourceID int
 	Lang       string
 	URI        string
 	PageCount  int
@@ -32,6 +33,7 @@ type Parser struct {
 func New(uri config.StartURL, cfg *config.Config, entries *entry.Entries) Parser {
 	parser := Parser{
 		ID:         uuid.New(),
+		ResourceID: cfg.Parser.ResourceID,
 		Lang:       uri.Lang,
 		URI:        uri.Url,
 		PageCount:  cfg.Parser.PageCount,

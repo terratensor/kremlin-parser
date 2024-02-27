@@ -44,6 +44,11 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
 	}
 
+	defer r.Body.Close()
+
+	log.Printf("%#v\n", r)
+	//panic("stop")
+
 	// показывает общее количество найденных результатов, предполагается тчо должно быть больше нуля
 	total := resp.GetHits()
 	tot := total.GetTotal()
@@ -58,7 +63,7 @@ func main() {
 	//log.Println(ent)
 
 	ent.Summary = "test1"
-	Update(id, ent)
+	//Update(id, ent)
 
 	fmt.Fprintf(os.Stdout, "resp.Hits: %v\n", tot)
 	// response from `Sql`: []map[string]interface{}

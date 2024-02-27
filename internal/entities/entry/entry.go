@@ -6,14 +6,17 @@ import (
 )
 
 type Entry struct {
-	ID        *int64     `json:"id,omitempty"`
-	Language  string     `json:"language"`
-	Title     string     `json:"title"`
-	Url       string     `json:"url"`
-	Updated   *time.Time `json:"updated"`
-	Published *time.Time `json:"published"`
-	Summary   string     `json:"summary"`
-	Content   string     `json:"content"`
+	ID         *int64     `json:"id"`
+	Language   string     `json:"language"`
+	Title      string     `json:"title"`
+	Url        string     `json:"url"`
+	Updated    *time.Time `json:"updated"`
+	Published  *time.Time `json:"published"`
+	Summary    string     `json:"summary"`
+	Content    string     `json:"content"`
+	Author     string     `json:"author"`
+	Number     string     `json:"number"`
+	ResourceID int        `json:"resource_id"`
 }
 
 type StorageInterface interface {

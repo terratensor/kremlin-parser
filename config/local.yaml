@@ -5,7 +5,7 @@ start_urls:
   - url: "http://en.kremlin.ru/events/all/feed"
     lang: "en"
 parser:
-  URI: "http://kremlin.ru/events/all/feed"
+  resource_id: 1
   page_count: 1
   output_path: "./data"
   parse_delay: 2s

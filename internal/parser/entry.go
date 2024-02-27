@@ -57,6 +57,7 @@ func (p *Parser) parseEntries(n *html.Node) []entry.Entry {
 			}
 
 			e.Language = p.Lang
+			e.ResourceID = p.ResourceID
 			entries = append(entries, e) //fmt.Println(entry)
 		}
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
