@@ -1,4 +1,4 @@
-package parser
+package kremlin
 
 import (
 	"context"
@@ -32,7 +32,7 @@ type Parser struct {
 	entries        *feed.Entries
 }
 
-func New(uri config.StartURL, cfg *config.Config, entries *feed.Entries) Parser {
+func NewParser(uri config.StartURL, cfg *config.Config, entries *feed.Entries) Parser {
 	parser := Parser{
 		ID:             uuid.New(),
 		ManticoreIndex: cfg.ManticoreIndex,

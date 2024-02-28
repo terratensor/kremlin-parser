@@ -8,7 +8,7 @@ import (
 	"github.com/terratensor/kremlin-parser/internal/entities/feed"
 	"github.com/terratensor/kremlin-parser/internal/lib/logger/handlers/slogpretty"
 	"github.com/terratensor/kremlin-parser/internal/lib/logger/sl"
-	"github.com/terratensor/kremlin-parser/internal/parser"
+	"github.com/terratensor/kremlin-parser/internal/parser/kremlin"
 	"github.com/terratensor/kremlin-parser/internal/storage/manticore"
 	"log"
 	"log/slog"
@@ -79,7 +79,7 @@ func main() {
 	}
 
 	for _, uri := range cfg.StartURLs {
-		prs := parser.New(uri, cfg, entries)
+		prs := kremlin.NewParser(uri, cfg, entries)
 		prs.Parse(ctx, logger)
 	}
 	logger.Info("all pages were successfully parsed")

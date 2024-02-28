@@ -5,7 +5,7 @@ import (
 	"github.com/terratensor/kremlin-parser/internal/config"
 	"github.com/terratensor/kremlin-parser/internal/entities/feed"
 	"github.com/terratensor/kremlin-parser/internal/lib/logger/sl"
-	"github.com/terratensor/kremlin-parser/internal/parser"
+	"github.com/terratensor/kremlin-parser/internal/parser/kremlin"
 	"github.com/terratensor/kremlin-parser/internal/storage/manticore"
 	"log/slog"
 	"os"
@@ -16,9 +16,8 @@ import (
 // Crawler is used as configuration for Run.
 // Is validated in Run().
 type Crawler struct {
-	Config  *config.Config
-	Logger  *slog.Logger
-	Verbose bool // Optional. If set, status updates are written to logger.
+	Config *config.Config
+	Logger *slog.Logger
 }
 
 func (c Crawler) Run(ctx context.Context, wg *sync.WaitGroup) {
@@ -38,7 +37,7 @@ func (c Crawler) Run(ctx context.Context, wg *sync.WaitGroup) {
 	for {
 
 		for _, uri := range c.Config.StartURLs {
-			prs := parser.New(uri, c.Config, entries)
+			prs := kremlin.NewParser(uri, c.Config, entries)
 			prs.Parse(ctx, c.Logger)
 		}
 
