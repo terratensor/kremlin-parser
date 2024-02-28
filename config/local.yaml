@@ -2,13 +2,21 @@ env: "local" # Окружение - local, dev или prod
 time_delay: 1m
 manticore_index: feed
 save_to_file: false
-start_urls:
-  - url: "http://kremlin.ru/events/all/feed"
-    lang: "ru"
-  - url: "http://en.kremlin.ru/events/all/feed"
-    lang: "en"
-parser:
-  resource_id: 1
-  page_count: 1
-  output_path: "./data"
-  parse_delay: 2s
+output_path: "./data"
+parsers:
+  kremlin:
+    resource_id: 1 # ID ресурса kremlin.ru — 1
+    parse_delay: 2s
+    start_urls:
+      - url: "http://kremlin.ru/events/all/feed"
+        lang: "ru"
+      - url: "http://en.kremlin.ru/events/all/feed"
+        lang: "en"
+#  mid:
+#      rid: 2 # ID ресурса mid.ru — 2
+#      parse_delay: 2s
+#      start_urls:
+#        - url: "http://en.kremlin.ru/events/all/feed"
+#          lang: "en"
+#        - url: "http://kremlin.ru/events/all/feed"
+#          lang: "ru"

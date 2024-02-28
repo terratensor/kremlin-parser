@@ -22,29 +22,27 @@ type Parser struct {
 	ID             uuid.UUID
 	ManticoreIndex string
 	SaveToFile     bool
+	OutputPath     string
 	ResourceID     int
 	Lang           string
 	URI            string
 	PageCount      int
-	OutputPath     string
 	Delay          *time.Duration
 	Meta           *Meta
-	entries        *feed.Entries
 }
 
-func NewParser(uri config.StartURL, cfg *config.Config, entries *feed.Entries) Parser {
+func NewParser(uri config.StartURL, pageCount int, cfg *config.Config) Parser {
 	parser := Parser{
 		ID:             uuid.New(),
 		ManticoreIndex: cfg.ManticoreIndex,
 		SaveToFile:     cfg.SaveToFile,
-		ResourceID:     cfg.Parser.ResourceID,
+		OutputPath:     cfg.OutputPath,
+		ResourceID:     cfg.Parsers.Kremlin.ResourceID,
 		Lang:           uri.Lang,
 		URI:            uri.Url,
-		PageCount:      cfg.Parser.PageCount,
-		OutputPath:     cfg.Parser.OutputPath,
-		Delay:          cfg.ParseDelay,
+		PageCount:      pageCount,
+		Delay:          cfg.Parsers.Kremlin.ParseDelay,
 		Meta:           NewMeta(),
-		entries:        entries,
 	}
 	return parser
 }
@@ -54,13 +52,15 @@ func NewParser(uri config.StartURL, cfg *config.Config, entries *feed.Entries) P
 // При каждом успешном парсинге возвращает ссылку на следующую страницу rss ленты.
 // Делает установленную в конфиге паузу между парсингами (5 сек по умолчанию).
 // Используется logger для записи различных событий во время анализа.
-func (p *Parser) Parse(ctx context.Context, log *slog.Logger) {
+func (p *Parser) Parse(ctx context.Context, log *slog.Logger) []feed.Entry {
 	const op = "parser.parse"
 	log = log.With(
 		slog.String("op", op),
 		slog.String("pid", p.ID.String()),
 		slog.String("lang", p.Lang),
 	)
+
+	var entries []feed.Entry
 
 	count := 1
 	// Парсит указанное количество страниц rss ленты сайта кремля.
@@ -98,52 +98,8 @@ func (p *Parser) Parse(ctx context.Context, log *slog.Logger) {
 		}
 
 		p.parseMeta(node)
-		entries := p.parseEntries(node)
-
-		// Итерируемся по слайсу спарсеных entries, ищем по url запись в мантикоре,
-		// если записи нет nil, то делаем запись в мантикору
-		// todo сделать проверку и логику для update, когда запись есть но поля updated не совпадают
-		for _, e := range entries {
-			dbe, err := p.entries.Storage.FindByUrl(ctx, e.Url)
-			if err != nil {
-				log.Error("failed find entry by url", sl.Err(err))
-			}
-			if dbe == nil {
-				id, err := p.entries.Storage.Insert(ctx, &e)
-				if err != nil {
-					log.Error(
-						"failed insert entry",
-						slog.Int64("id", *id),
-						slog.String("url", e.Url),
-						sl.Err(err),
-					)
-				}
-				log.Info(
-					"entry successful inserted",
-					slog.Int64("id", *id),
-					slog.String("url", e.Url),
-				)
-			} else {
-				if !matchTimes(dbe, e) {
-					e.ID = dbe.ID
-					err = p.entries.Storage.Update(ctx, &e)
-					if err != nil {
-						log.Error(
-							"failed update entry",
-							slog.Int64("id", *e.ID),
-							slog.String("url", e.Url),
-							sl.Err(err),
-						)
-					} else {
-						log.Info(
-							"entry successful updated",
-							slog.Int64("id", *e.ID),
-							slog.String("url", e.Url),
-						)
-					}
-				}
-			}
-		}
+		entries = append(entries, p.parseEntries(node)...)
+		//entries = append(entries, entries...)
 
 		if p.SaveToFile {
 			WriteJsonFile(log, entries, path)
@@ -154,6 +110,8 @@ func (p *Parser) Parse(ctx context.Context, log *slog.Logger) {
 		}
 		count++
 	}
+
+	return entries
 }
 
 func (p *Parser) getUrl() string {
@@ -276,18 +234,4 @@ func WriteJsonFile(logger *slog.Logger, entries []feed.Entry, outputPath string)
 	_, err = file.Write(aJson)
 	checkError("Cannot write to the file", err)
 	logger.Debug("path was successful writing", slog.Any("path", outputPath))
-}
-
-func matchTimes(dbe *feed.Entry, e feed.Entry) bool {
-	// Приводим время в обоих объектах к GMT+4, как на сайте Кремля
-	loc, _ := time.LoadLocation("Etc/GMT-4")
-	dbeTime := dbe.Updated.In(loc)
-	eTime := e.Updated.In(loc)
-
-	if dbeTime != eTime {
-		log.Printf("`updated` fields do not match dbe updated %v", dbeTime)
-		log.Printf("`updated` fields do not match prs updated %v", eTime)
-		return false
-	}
-	return true
 }

@@ -4,11 +4,12 @@ import (
 	"context"
 	flag "github.com/spf13/pflag"
 	"github.com/terratensor/kremlin-parser/internal/config"
-	"github.com/terratensor/kremlin-parser/internal/crawler"
 	"github.com/terratensor/kremlin-parser/internal/entities/feed"
 	"github.com/terratensor/kremlin-parser/internal/lib/logger/handlers/slogpretty"
 	"github.com/terratensor/kremlin-parser/internal/lib/logger/sl"
 	"github.com/terratensor/kremlin-parser/internal/parser/kremlin"
+	"github.com/terratensor/kremlin-parser/internal/preserver"
+	"github.com/terratensor/kremlin-parser/internal/starter"
 	"github.com/terratensor/kremlin-parser/internal/storage/manticore"
 	"log"
 	"log/slog"
@@ -34,11 +35,11 @@ func main() {
 	logger = logger.With(slog.String("env", cfg.Env))
 	logger.Debug("logger debug mode enabled")
 
-	var demon bool
+	var service bool
 	var pageCount int
 
-	flag.BoolVarP(&demon, "service", "s", false, "запуск парсера в режиме службы")
-	flag.IntVarP(&pageCount, "page-count", "p", 0, "спарсить указанное количество страниц")
+	flag.BoolVarP(&service, "service", "s", false, "запуск парсера в режиме службы")
+	flag.IntVarP(&pageCount, "page-count", "p", 1, "спарсить указанное количество страниц")
 	flag.Parse()
 
 	var storage feed.StorageInterface
@@ -50,60 +51,77 @@ func main() {
 	}
 
 	storage = manticoreClient
-	entries := feed.NewFeedStorage(storage)
 
-	if demon {
-		//ch := make(chan feed.Entry, 100)
-		wg := &sync.WaitGroup{}
-		wg.Add(1)
+	ch := make(chan feed.Entry)
+	wg := &sync.WaitGroup{}
 
-		go func() {
-			crawler.Crawler{
-				Config: cfg,
-				Logger: logger,
-			}.Run(ctx, wg)
-			// Обрабатываем ошибку и выходим с кодом 1, для того чтобы инициировать перезапуск докер контейнера.
-			// Возможно тут имеет смысл сделать сервис проверки health, но пока так
-			//if err != nil {
-			//	logger.Error("%v\r\n failure, restart required", sl.Err(err))
-			//	//sentry.CaptureMessage(fmt.Sprint(err))
-			//	os.Exit(1)
-			//}
-		}()
+	if service {
+
+		app := starter.NewApp(cfg, logger)
+
+		wg.Add(2)
+
+		go app.Start(ctx, ch, wg)
+
+		go preserver.Preserver{
+			Entries: feed.NewFeedStorage(storage),
+			Logger:  logger,
+			Config:  cfg,
+		}.Handler(ctx, ch, wg)
+
 		wg.Wait()
 		cancel()
 	}
 
-	if pageCount > 0 {
-		cfg.PageCount = pageCount
+	// Если запущено ни как служба и задано число страниц
+	// TODO это надо переделать, т.к. не будет работать если парсеров будет больше чем 1
+	// Надо реализовать завершение, похоже канал не закрывается? Разобраться с каналом
+	logger.Info("app mode page parser")
+
+	wg.Add(1)
+
+	var entries []feed.Entry
+	for _, uri := range cfg.Parsers.Kremlin.StartURLs {
+		prs := kremlin.NewParser(uri, pageCount, cfg)
+		entries = append(entries, prs.Parse(ctx, logger)...)
 	}
 
-	for _, uri := range cfg.StartURLs {
-		prs := kremlin.NewParser(uri, cfg, entries)
-		prs.Parse(ctx, logger)
+	go preserver.Preserver{
+		Entries: feed.NewFeedStorage(storage),
+		Logger:  logger,
+		Config:  cfg,
+	}.Handler(ctx, ch, wg)
+
+	for _, e := range entries {
+		ch <- e
 	}
+
+	wg.Wait()
 	logger.Info("all pages were successfully parsed")
+	cancel()
+	<-ctx.Done()
+
 }
 
 // setupLogger инициализирует и возвращает logger в зависимости от окружения.
 //
 // Принимает строковый параметр, представляющий среду, и возвращает указатель на slog.Logger.
 func setupLogger(env string) *slog.Logger {
-	var log *slog.Logger
+	var logger *slog.Logger
 
 	switch env {
 	case envLocal:
-		log = setupPrettySlog()
+		logger = setupPrettySlog()
 	case envDev:
-		log = slog.New(
+		logger = slog.New(
 			slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}),
 		)
 	case envProd:
-		log = slog.New(
+		logger = slog.New(
 			slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}),
 		)
 	}
-	return log
+	return logger
 }
 
 func setupPrettySlog() *slog.Logger {

@@ -12,20 +12,27 @@ type Config struct {
 	TimeDelay      *time.Duration `yaml:"time_delay" env-default:"1m"`
 	ManticoreIndex string         `yaml:"manticore_index"`
 	SaveToFile     bool           `yaml:"save_to_file"`
-	StartURLs      []StartURL     `yaml:"start_urls"`
-	Parser         `yaml:"parser"`
+	OutputPath     string         `yaml:"output_path"`
+	Parsers        struct {
+		Kremlin Kremlin `yaml:"kremlin"`
+		//Mid     Mid     `yaml:"mid"`
+		//Mil     Mil     `yaml:"mil"`
+	} `yaml:"parsers"`
 }
 
 type StartURL struct {
-	Lang string `yaml:"lang"`
 	Url  string `yaml:"url"`
+	Lang string `yaml:"lang"`
 }
+
+type Kremlin Parser
+type Mid Parser
+type Mil Parser
 
 type Parser struct {
 	ResourceID int            `yaml:"resource_id" env-default:"1"`
-	PageCount  int            `yaml:"page_count" env-default:"1"`
-	OutputPath string         `yaml:"output_path" env-default:"./data"`
-	ParseDelay *time.Duration `yaml:"parse_delay" env-default:"5s"`
+	ParseDelay *time.Duration `yaml:"parse_delay" env-default:"2s"`
+	StartURLs  []StartURL     `yaml:"start_urls"`
 }
 
 func MustLoad() *Config {
