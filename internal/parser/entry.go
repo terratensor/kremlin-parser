@@ -2,17 +2,17 @@ package parser
 
 import (
 	"fmt"
-	"github.com/terratensor/kremlin-parser/internal/entities/entry"
+	"github.com/terratensor/kremlin-parser/internal/entities/feed"
 	"golang.org/x/net/html"
 	"time"
 )
 
-func (p *Parser) parseEntries(n *html.Node) []entry.Entry {
+func (p *Parser) parseEntries(n *html.Node) []feed.Entry {
 
-	var entries []entry.Entry
+	var entries []feed.Entry
 	var f func(*html.Node)
 
-	e := entry.Entry{}
+	e := feed.Entry{}
 
 	f = func(n *html.Node) {
 

@@ -5,14 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	openapiclient "github.com/manticoresoftware/manticoresearch-go"
-	"github.com/terratensor/kremlin-parser/internal/entities/entry"
+	"github.com/terratensor/kremlin-parser/internal/entities/feed"
 	"log"
 	"os"
 	"strconv"
 	"time"
 )
 
-var _ entry.StorageInterface = &Client{}
+var _ feed.StorageInterface = &Client{}
 
 type Response struct {
 	Took     int  `json:"took"`
@@ -56,7 +56,7 @@ type Client struct {
 	apiClient *openapiclient.APIClient
 }
 
-func NewDBEntry(entry *entry.Entry) *DBEntry {
+func NewDBEntry(entry *feed.Entry) *DBEntry {
 	dbe := &DBEntry{
 		Language:   entry.Language,
 		Title:      entry.Title,
@@ -117,7 +117,7 @@ func createTable(apiClient *openapiclient.APIClient, tbl string) error {
 	return nil
 }
 
-func (c *Client) Insert(ctx context.Context, entry *entry.Entry) error {
+func (c *Client) Insert(ctx context.Context, entry *feed.Entry) error {
 
 	dbe := NewDBEntry(entry)
 
@@ -148,7 +148,7 @@ func (c *Client) Insert(ctx context.Context, entry *entry.Entry) error {
 	return nil
 }
 
-func (c *Client) Update(ctx context.Context, entry *entry.Entry) error {
+func (c *Client) Update(ctx context.Context, entry *feed.Entry) error {
 	dbe := NewDBEntry(entry)
 
 	//marshal into JSON buffer
@@ -181,7 +181,7 @@ func (c *Client) Update(ctx context.Context, entry *entry.Entry) error {
 	return nil
 }
 
-func (c *Client) Bulk(ctx context.Context, entries *[]entry.Entry) error {
+func (c *Client) Bulk(ctx context.Context, entries *[]feed.Entry) error {
 
 	var serializedEntries string
 	for _, e := range *entries {
@@ -206,7 +206,7 @@ func (c *Client) Bulk(ctx context.Context, entries *[]entry.Entry) error {
 	return nil
 }
 
-func (c *Client) FindByUrl(ctx context.Context, url string) (*entry.Entry, error) {
+func (c *Client) FindByUrl(ctx context.Context, url string) (*feed.Entry, error) {
 	// response from `Search`: SearchRequest
 	searchRequest := *openapiclient.NewSearchRequest("events")
 
@@ -237,7 +237,7 @@ func (c *Client) FindByUrl(ctx context.Context, url string) (*entry.Entry, error
 	updated := time.Unix(dbe.Updated, 0)
 	published := time.Unix(dbe.Published, 0)
 
-	ent := &entry.Entry{
+	ent := &feed.Entry{
 		ID:         id,
 		Language:   dbe.Language,
 		Title:      dbe.Title,

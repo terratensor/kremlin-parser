@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gosimple/slug"
 	"github.com/terratensor/kremlin-parser/internal/config"
-	"github.com/terratensor/kremlin-parser/internal/entities/entry"
+	"github.com/terratensor/kremlin-parser/internal/entities/feed"
 	"github.com/terratensor/kremlin-parser/internal/lib/logger/sl"
 	"golang.org/x/net/html"
 	"log"
@@ -27,10 +27,10 @@ type Parser struct {
 	OutputPath string
 	Delay      *time.Duration
 	Meta       *Meta
-	entries    *entry.Entries
+	entries    *feed.Entries
 }
 
-func New(uri config.StartURL, cfg *config.Config, entries *entry.Entries) Parser {
+func New(uri config.StartURL, cfg *config.Config, entries *feed.Entries) Parser {
 	parser := Parser{
 		ID:         uuid.New(),
 		ResourceID: cfg.Parser.ResourceID,
@@ -101,12 +101,12 @@ func (p *Parser) Parse(ctx context.Context, log *slog.Logger) {
 		// если записи нет nil, то делаем запись в мантикору
 		// todo сделать проверку и логику для update, когда запись есть но поля updated не совпадают
 		for _, e := range entries {
-			dbe, err := p.entries.EntryStore.FindByUrl(ctx, e.Url)
+			dbe, err := p.entries.Storage.FindByUrl(ctx, e.Url)
 			if err != nil {
 				log.Error("failed find entry by url", sl.Err(err))
 			}
 			if dbe == nil {
-				err = p.entries.EntryStore.Insert(ctx, &e)
+				err = p.entries.Storage.Insert(ctx, &e)
 				if err != nil {
 					log.Error("failed insert entry", sl.Err(err))
 				}
@@ -117,7 +117,7 @@ func (p *Parser) Parse(ctx context.Context, log *slog.Logger) {
 					fmt.Fprintf(os.Stdout, "eid %d\n", *e.ID)
 					fmt.Fprintf(os.Stdout, "dbeid %d\n", *dbe.ID)
 
-					err = p.entries.EntryStore.Update(ctx, &e)
+					err = p.entries.Storage.Update(ctx, &e)
 					if err != nil {
 						log.Error("failed update entry", sl.Err(err))
 					} else {
@@ -127,7 +127,7 @@ func (p *Parser) Parse(ctx context.Context, log *slog.Logger) {
 			}
 		}
 
-		//err = p.entries.EntryStore.Bulk(ctx, &entries)
+		//err = p.entries.Storage.Bulk(ctx, &entries)
 		//if err != nil {
 		//	log.Error("failed bulk insert entries", sl.Err(err))
 		//}
@@ -142,7 +142,7 @@ func (p *Parser) Parse(ctx context.Context, log *slog.Logger) {
 	}
 }
 
-func (p *Parser) bulkInsert(ctx context.Context, entries []entry.Entry, log *slog.Logger) {
+func (p *Parser) bulkInsert(ctx context.Context, entries []feed.Entry, log *slog.Logger) {
 	buffer, err := json.Marshal(entries)
 	if err != nil {
 		fmt.Printf("error marshaling JSON: %v\n", err)
@@ -156,7 +156,7 @@ func (p *Parser) bulkInsert(ctx context.Context, entries []entry.Entry, log *slo
 		// Handle error
 	}
 
-	p.entries.EntryStore.Bulk(ctx, &entries)
+	p.entries.Storage.Bulk(ctx, &entries)
 }
 
 func (p *Parser) getUrl() string {
@@ -266,7 +266,7 @@ func checkError(message string, err error) {
 	}
 }
 
-func WriteJsonFile(entries []entry.Entry, outputPath string) {
+func WriteJsonFile(entries []feed.Entry, outputPath string) {
 
 	// Create file
 	file, err := os.Create(outputPath)
@@ -281,7 +281,7 @@ func WriteJsonFile(entries []entry.Entry, outputPath string) {
 	checkError("Cannot write to the file", err)
 }
 
-func matchTimes(dbe *entry.Entry, e entry.Entry) bool {
+func matchTimes(dbe *feed.Entry, e feed.Entry) bool {
 	// Приводим время в обоих объектах к GMT+4, как на сайте Кремля
 	loc, _ := time.LoadLocation("Etc/GMT-4")
 	dbeTime := dbe.Updated.In(loc)

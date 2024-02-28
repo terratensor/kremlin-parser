@@ -1,4 +1,4 @@
-package entry
+package feed
 
 import (
 	"golang.org/x/net/context"
@@ -20,18 +20,18 @@ type Entry struct {
 }
 
 type StorageInterface interface {
+	FindByUrl(ctx context.Context, url string) (*Entry, error)
 	Insert(ctx context.Context, entry *Entry) error
 	Update(ctx context.Context, entry *Entry) error
 	Bulk(ctx context.Context, entries *[]Entry) error
-	FindByUrl(ctx context.Context, url string) (*Entry, error)
 }
 
 type Entries struct {
-	EntryStore StorageInterface
+	Storage StorageInterface
 }
 
-func NewEntries(store StorageInterface) *Entries {
+func NewFeedStorage(store StorageInterface) *Entries {
 	return &Entries{
-		EntryStore: store,
+		Storage: store,
 	}
 }

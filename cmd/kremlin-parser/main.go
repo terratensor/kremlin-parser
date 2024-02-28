@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"github.com/terratensor/kremlin-parser/internal/config"
-	"github.com/terratensor/kremlin-parser/internal/entities/entry"
+	"github.com/terratensor/kremlin-parser/internal/entities/feed"
 	"github.com/terratensor/kremlin-parser/internal/lib/logger/handlers/slogpretty"
 	"github.com/terratensor/kremlin-parser/internal/lib/logger/sl"
 	"github.com/terratensor/kremlin-parser/internal/parser"
@@ -32,7 +32,7 @@ func main() {
 
 	log.Debug("logger debug mode enabled")
 
-	var storage entry.StorageInterface
+	var storage feed.StorageInterface
 
 	manticoreClient, err := manticore.New("events")
 	if err != nil {
@@ -41,7 +41,7 @@ func main() {
 	}
 
 	storage = manticoreClient
-	entries := entry.NewEntries(storage)
+	entries := feed.NewFeedStorage(storage)
 
 	//var pageCount, outputPath string
 	//
