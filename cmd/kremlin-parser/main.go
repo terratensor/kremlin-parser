@@ -34,7 +34,7 @@ func main() {
 
 	var storage feed.StorageInterface
 
-	manticoreClient, err := manticore.New("events")
+	manticoreClient, err := manticore.New(cfg.ManticoreIndex)
 	if err != nil {
 		log.Error("failed to initialize manticore client", sl.Err(err))
 		os.Exit(1)
@@ -65,7 +65,7 @@ func main() {
 		prs.Parse(ctx, log)
 	}
 
-	log.Info("all pages were successfully parsed")
+	log.Debug("all pages were successfully parsed")
 }
 
 // setupLogger инициализирует и возвращает logger в зависимости от окружения.

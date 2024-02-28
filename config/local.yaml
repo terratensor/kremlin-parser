@@ -1,4 +1,5 @@
 env: "local" # Окружение - local, dev или prod
+manticore_index: feed
 start_urls:
   - url: "http://kremlin.ru/events/all/feed"
     lang: "ru"

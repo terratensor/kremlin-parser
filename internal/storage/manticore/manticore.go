@@ -54,6 +54,7 @@ type DBEntry struct {
 
 type Client struct {
 	apiClient *openapiclient.APIClient
+	Index     string
 }
 
 func NewDBEntry(entry *feed.Entry) *DBEntry {
@@ -101,7 +102,7 @@ func New(tbl string) (*Client, error) {
 		}
 	}
 
-	return &Client{apiClient: apiClient}, nil
+	return &Client{apiClient: apiClient, Index: tbl}, nil
 }
 
 func createTable(apiClient *openapiclient.APIClient, tbl string) error {
@@ -117,35 +118,35 @@ func createTable(apiClient *openapiclient.APIClient, tbl string) error {
 	return nil
 }
 
-func (c *Client) Insert(ctx context.Context, entry *feed.Entry) error {
+func (c *Client) Insert(ctx context.Context, entry *feed.Entry) (*int64, error) {
 
 	dbe := NewDBEntry(entry)
 
 	//marshal into JSON buffer
 	buffer, err := json.Marshal(dbe)
 	if err != nil {
-		return fmt.Errorf("error marshaling JSON: %v\n", err)
+		return nil, fmt.Errorf("error marshaling JSON: %v\n", err)
 	}
 
 	var doc map[string]interface{}
 	err = json.Unmarshal(buffer, &doc)
 	if err != nil {
-		return fmt.Errorf("error unmarshaling buffer: %v\n", err)
+		return nil, fmt.Errorf("error unmarshaling buffer: %v\n", err)
 	}
 
 	idr := openapiclient.InsertDocumentRequest{
-		Index: "events",
+		Index: c.Index,
 		Doc:   doc,
 	}
 
-	_, r, err := c.apiClient.IndexAPI.Insert(ctx).InsertDocumentRequest(idr).Execute()
+	resp, r, err := c.apiClient.IndexAPI.Insert(ctx).InsertDocumentRequest(idr).Execute()
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
-		return fmt.Errorf("Error when calling `IndexAPI.Insert``: %v\n", err)
+		return nil, fmt.Errorf("Error when calling `IndexAPI.Insert``: %v\n", err)
 	}
 
-	return nil
+	return resp.Id, nil
 }
 
 func (c *Client) Update(ctx context.Context, entry *feed.Entry) error {
@@ -164,7 +165,7 @@ func (c *Client) Update(ctx context.Context, entry *feed.Entry) error {
 	}
 
 	idr := openapiclient.InsertDocumentRequest{
-		Index: "events",
+		Index: c.Index,
 		Id:    entry.ID,
 		Doc:   doc,
 	}
@@ -208,7 +209,7 @@ func (c *Client) Bulk(ctx context.Context, entries *[]feed.Entry) error {
 
 func (c *Client) FindByUrl(ctx context.Context, url string) (*feed.Entry, error) {
 	// response from `Search`: SearchRequest
-	searchRequest := *openapiclient.NewSearchRequest("events")
+	searchRequest := *openapiclient.NewSearchRequest(c.Index)
 
 	// Perform a search
 	// Пример для запроса фильтра по url

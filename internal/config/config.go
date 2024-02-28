@@ -8,9 +8,10 @@ import (
 )
 
 type Config struct {
-	Env       string     `yaml:"env" env-default:"development"`
-	StartURLs []StartURL `yaml:"start_urls"`
-	Parser    `yaml:"parser"`
+	Env            string     `yaml:"env" env-default:"development"`
+	ManticoreIndex string     `yaml:"manticore_index"`
+	StartURLs      []StartURL `yaml:"start_urls"`
+	Parser         `yaml:"parser"`
 }
 
 type StartURL struct {

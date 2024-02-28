@@ -19,28 +19,30 @@ import (
 )
 
 type Parser struct {
-	ID         uuid.UUID
-	ResourceID int
-	Lang       string
-	URI        string
-	PageCount  int
-	OutputPath string
-	Delay      *time.Duration
-	Meta       *Meta
-	entries    *feed.Entries
+	ID             uuid.UUID
+	ManticoreIndex string
+	ResourceID     int
+	Lang           string
+	URI            string
+	PageCount      int
+	OutputPath     string
+	Delay          *time.Duration
+	Meta           *Meta
+	entries        *feed.Entries
 }
 
 func New(uri config.StartURL, cfg *config.Config, entries *feed.Entries) Parser {
 	parser := Parser{
-		ID:         uuid.New(),
-		ResourceID: cfg.Parser.ResourceID,
-		Lang:       uri.Lang,
-		URI:        uri.Url,
-		PageCount:  cfg.Parser.PageCount,
-		OutputPath: cfg.Parser.OutputPath,
-		Delay:      cfg.ParseDelay,
-		Meta:       NewMeta(),
-		entries:    entries,
+		ID:             uuid.New(),
+		ManticoreIndex: cfg.ManticoreIndex,
+		ResourceID:     cfg.Parser.ResourceID,
+		Lang:           uri.Lang,
+		URI:            uri.Url,
+		PageCount:      cfg.Parser.PageCount,
+		OutputPath:     cfg.Parser.OutputPath,
+		Delay:          cfg.ParseDelay,
+		Meta:           NewMeta(),
+		entries:        entries,
 	}
 	return parser
 }
@@ -54,8 +56,8 @@ func (p *Parser) Parse(ctx context.Context, log *slog.Logger) {
 	const op = "parser.parse"
 	log = log.With(
 		slog.String("op", op),
-		slog.String("parser_id", p.ID.String()),
-		slog.String("language", p.Lang),
+		slog.String("pid", p.ID.String()),
+		slog.String("lang", p.Lang),
 	)
 
 	count := 1
@@ -106,22 +108,40 @@ func (p *Parser) Parse(ctx context.Context, log *slog.Logger) {
 				log.Error("failed find entry by url", sl.Err(err))
 			}
 			if dbe == nil {
-				err = p.entries.Storage.Insert(ctx, &e)
+				id, err := p.entries.Storage.Insert(ctx, &e)
 				if err != nil {
-					log.Error("failed insert entry", sl.Err(err))
+					log.Error(
+						"failed insert entry",
+						slog.Int64("id", *id),
+						slog.String("url", e.Url),
+						sl.Err(err),
+					)
 				}
-				log.Info("entry successful inserted", e.Url)
+				log.Info(
+					"entry successful inserted",
+					slog.Int64("id", *id),
+					slog.String("url", e.Url),
+				)
 			} else {
 				if !matchTimes(dbe, e) {
 					e.ID = dbe.ID
-					fmt.Fprintf(os.Stdout, "eid %d\n", *e.ID)
-					fmt.Fprintf(os.Stdout, "dbeid %d\n", *dbe.ID)
+					//fmt.Fprintf(os.Stdout, "eid %d\n", *e.ID)
+					//fmt.Fprintf(os.Stdout, "dbeid %d\n", *dbe.ID)
 
 					err = p.entries.Storage.Update(ctx, &e)
 					if err != nil {
-						log.Error("failed update entry", sl.Err(err))
+						log.Error(
+							"failed update entry",
+							slog.Int64("id", *e.ID),
+							slog.String("url", e.Url),
+							sl.Err(err),
+						)
 					} else {
-						log.Info("entry successful updated", e.Url)
+						log.Info(
+							"entry successful updated",
+							slog.Int64("id", *e.ID),
+							slog.String("url", e.Url),
+						)
 					}
 				}
 			}
