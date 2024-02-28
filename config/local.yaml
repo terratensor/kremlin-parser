@@ -1,4 +1,5 @@
 env: "local" # Окружение - local, dev или prod
+time_delay: 1m
 manticore_index: feed
 save_to_file: false
 start_urls:

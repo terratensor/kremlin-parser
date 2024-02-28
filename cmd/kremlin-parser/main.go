@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	flag "github.com/spf13/pflag"
 	"github.com/terratensor/kremlin-parser/internal/config"
+	"github.com/terratensor/kremlin-parser/internal/crawler"
 	"github.com/terratensor/kremlin-parser/internal/entities/feed"
 	"github.com/terratensor/kremlin-parser/internal/lib/logger/handlers/slogpretty"
 	"github.com/terratensor/kremlin-parser/internal/lib/logger/sl"
@@ -12,6 +14,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"sync"
 	"time"
 )
 
@@ -24,48 +27,62 @@ const (
 func main() {
 
 	prepareTimeZone()
-	ctx, _ := signal.NotifyContext(context.Background(), os.Interrupt)
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	cfg := config.MustLoad()
 
-	log := setupLogger(cfg.Env)
-	log = log.With(slog.String("env", cfg.Env)) // к каждому сообщению будет добавляться поле с информацией о текущем окружении
+	logger := setupLogger(cfg.Env)
+	logger = logger.With(slog.String("env", cfg.Env))
+	logger.Debug("logger debug mode enabled")
 
-	log.Debug("logger debug mode enabled")
+	var demon bool
+	var pageCount int
+
+	flag.BoolVarP(&demon, "service", "s", false, "запуск парсера в режиме службы")
+	flag.IntVarP(&pageCount, "page-count", "p", 0, "спарсить указанное количество страниц")
+	flag.Parse()
 
 	var storage feed.StorageInterface
 
 	manticoreClient, err := manticore.New(cfg.ManticoreIndex)
 	if err != nil {
-		log.Error("failed to initialize manticore client", sl.Err(err))
+		logger.Error("failed to initialize manticore client", sl.Err(err))
 		os.Exit(1)
 	}
 
 	storage = manticoreClient
 	entries := feed.NewFeedStorage(storage)
 
-	//var pageCount, outputPath string
-	//
-	//flag.StringVarP(&cfg.Parser.OutputPath, "output", "o", "./data", "путь сохранения файлов")
-	//flag.StringVarP(&cfg.Parser.PageCount, "page-count", "p", "1", "спарсить указанное количество страниц")
-	//flag.Parse()
+	if demon {
+		//ch := make(chan feed.Entry, 100)
+		wg := &sync.WaitGroup{}
+		wg.Add(1)
 
-	//var wg sync.WaitGroup
-	//for _, uri := range cfg.StartURLs {
-	//	prs := parser.New(uri, cfg, manticoreClient)
-	//	wg.Add(1)
-	//	go func() {
-	//		defer wg.Done()
-	//		prs.Parse(log)
-	//	}()
-	//}
-	//wg.Wait()
+		go func() {
+			crawler.Crawler{
+				Config: cfg,
+				Logger: logger,
+			}.Run(ctx, wg)
+			// Обрабатываем ошибку и выходим с кодом 1, для того чтобы инициировать перезапуск докер контейнера.
+			// Возможно тут имеет смысл сделать сервис проверки health, но пока так
+			//if err != nil {
+			//	logger.Error("%v\r\n failure, restart required", sl.Err(err))
+			//	//sentry.CaptureMessage(fmt.Sprint(err))
+			//	os.Exit(1)
+			//}
+		}()
+		wg.Wait()
+		cancel()
+	}
+
+	if pageCount > 0 {
+		cfg.PageCount = pageCount
+	}
 
 	for _, uri := range cfg.StartURLs {
 		prs := parser.New(uri, cfg, entries)
-		prs.Parse(ctx, log)
+		prs.Parse(ctx, logger)
 	}
-
-	log.Debug("all pages were successfully parsed")
+	logger.Info("all pages were successfully parsed")
 }
 
 // setupLogger инициализирует и возвращает logger в зависимости от окружения.
