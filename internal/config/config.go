@@ -8,10 +8,11 @@ import (
 )
 
 type Config struct {
-	Env            string     `yaml:"env" env-default:"development"`
-	ManticoreIndex string     `yaml:"manticore_index"`
-	SaveToFile     bool       `yaml:"save_to_file"`
-	StartURLs      []StartURL `yaml:"start_urls"`
+	Env            string         `yaml:"env" env-default:"development"`
+	TimeDelay      *time.Duration `yaml:"time_delay" env-default:"1m"`
+	ManticoreIndex string         `yaml:"manticore_index"`
+	SaveToFile     bool           `yaml:"save_to_file"`
+	StartURLs      []StartURL     `yaml:"start_urls"`
 	Parser         `yaml:"parser"`
 }
 

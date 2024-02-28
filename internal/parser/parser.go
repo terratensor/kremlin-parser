@@ -89,13 +89,12 @@ func (p *Parser) Parse(ctx context.Context, log *slog.Logger) {
 		node, err := getTopicBody(url)
 
 		if os.IsTimeout(err) {
-			log.Info("timeout error, waiting", slog.String("parse_delay", p.Delay.String()))
-			time.Sleep(*p.Delay)
+			log.Error("server timeout error", sl.Err(err))
 			continue
 		}
 		if err != nil {
 			log.Error("failed to decode request body", sl.Err(err))
-			os.Exit(1)
+			continue
 		}
 
 		p.parseMeta(node)
@@ -127,9 +126,6 @@ func (p *Parser) Parse(ctx context.Context, log *slog.Logger) {
 			} else {
 				if !matchTimes(dbe, e) {
 					e.ID = dbe.ID
-					//fmt.Fprintf(os.Stdout, "eid %d\n", *e.ID)
-					//fmt.Fprintf(os.Stdout, "dbeid %d\n", *dbe.ID)
-
 					err = p.entries.Storage.Update(ctx, &e)
 					if err != nil {
 						log.Error(
@@ -158,23 +154,6 @@ func (p *Parser) Parse(ctx context.Context, log *slog.Logger) {
 		}
 		count++
 	}
-}
-
-func (p *Parser) bulkInsert(ctx context.Context, entries []feed.Entry, log *slog.Logger) {
-	buffer, err := json.Marshal(entries)
-	if err != nil {
-		fmt.Printf("error marshaling JSON: %v\n", err)
-	}
-
-	//log.Info("entries", string(buffer))
-
-	var docs map[string]interface{}
-	err = json.Unmarshal(buffer, &docs)
-	if err != nil {
-		// Handle error
-	}
-
-	p.entries.Storage.Bulk(ctx, &entries)
 }
 
 func (p *Parser) getUrl() string {
