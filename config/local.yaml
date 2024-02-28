@@ -1,0 +1,13 @@
+env: "local" # Окружение - local, dev или prod
+manticore_index: feed
+save_to_file: false
+start_urls:
+  - url: "http://kremlin.ru/events/all/feed"
+    lang: "ru"
+  - url: "http://en.kremlin.ru/events/all/feed"
+    lang: "en"
+parser:
+  resource_id: 1
+  page_count: 1
+  output_path: "./data"
+  parse_delay: 2s
