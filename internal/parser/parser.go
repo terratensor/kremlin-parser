@@ -21,6 +21,7 @@ import (
 type Parser struct {
 	ID             uuid.UUID
 	ManticoreIndex string
+	SaveToFile     bool
 	ResourceID     int
 	Lang           string
 	URI            string
@@ -35,6 +36,7 @@ func New(uri config.StartURL, cfg *config.Config, entries *feed.Entries) Parser 
 	parser := Parser{
 		ID:             uuid.New(),
 		ManticoreIndex: cfg.ManticoreIndex,
+		SaveToFile:     cfg.SaveToFile,
 		ResourceID:     cfg.Parser.ResourceID,
 		Lang:           uri.Lang,
 		URI:            uri.Url,
@@ -78,16 +80,16 @@ func (p *Parser) Parse(ctx context.Context, log *slog.Logger) {
 		path := p.NewFilepath(url)
 
 		if count != p.PageCount || count != 1 {
-			log.Info("waiting", slog.Duration("parse_delay", *p.Delay))
+			log.Info("waiting", slog.String("parse_delay", p.Delay.String()))
 			time.Sleep(*p.Delay)
 		}
 
-		log.Info("parsing url", slog.Any("url", url))
+		log.Debug("parsing url", slog.Any("url", url))
 
 		node, err := getTopicBody(url)
 
 		if os.IsTimeout(err) {
-			log.Info("timeout error, waiting", slog.Duration("parse_delay", *p.Delay))
+			log.Info("timeout error, waiting", slog.String("parse_delay", p.Delay.String()))
 			time.Sleep(*p.Delay)
 			continue
 		}
@@ -147,13 +149,9 @@ func (p *Parser) Parse(ctx context.Context, log *slog.Logger) {
 			}
 		}
 
-		//err = p.entries.Storage.Bulk(ctx, &entries)
-		//if err != nil {
-		//	log.Error("failed bulk insert entries", sl.Err(err))
-		//}
-
-		WriteJsonFile(entries, path)
-		log.Info("path was successful writing", slog.Any("path", path))
+		if p.SaveToFile {
+			WriteJsonFile(log, entries, path)
+		}
 
 		if count == p.PageCount {
 			break
@@ -286,8 +284,7 @@ func checkError(message string, err error) {
 	}
 }
 
-func WriteJsonFile(entries []feed.Entry, outputPath string) {
-
+func WriteJsonFile(logger *slog.Logger, entries []feed.Entry, outputPath string) {
 	// Create file
 	file, err := os.Create(outputPath)
 	checkError("Cannot create file", err)
@@ -299,6 +296,7 @@ func WriteJsonFile(entries []feed.Entry, outputPath string) {
 	}
 	_, err = file.Write(aJson)
 	checkError("Cannot write to the file", err)
+	logger.Debug("path was successful writing", slog.Any("path", outputPath))
 }
 
 func matchTimes(dbe *feed.Entry, e feed.Entry) bool {
@@ -310,8 +308,6 @@ func matchTimes(dbe *feed.Entry, e feed.Entry) bool {
 	if dbeTime != eTime {
 		log.Printf("`updated` fields do not match dbe updated %v", dbeTime)
 		log.Printf("`updated` fields do not match prs updated %v", eTime)
-		//log.Printf("Entry: %v", *dbe)
-		//log.Printf("Entry: %v", e)
 		return false
 	}
 	return true
